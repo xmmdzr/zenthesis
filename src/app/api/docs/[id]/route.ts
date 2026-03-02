@@ -1,0 +1,43 @@
+import { jsonError, jsonOk } from "@/lib/api";
+import { getDoc, updateDoc } from "@/lib/docs-store";
+import { getRequestUserId } from "@/lib/request-user";
+
+interface RouteContext {
+  params: Promise<{ id: string }>;
+}
+
+export async function GET(request: Request, context: RouteContext) {
+  const userId = await getRequestUserId(request);
+  const { id } = await context.params;
+  const doc = await getDoc(userId, id);
+
+  if (!doc) {
+    return jsonError("document not found", 404);
+  }
+
+  return jsonOk({ doc });
+}
+
+export async function PATCH(request: Request, context: RouteContext) {
+  const userId = await getRequestUserId(request);
+  const { id } = await context.params;
+  const payload = (await request.json().catch(() => null)) as
+    | {
+        title?: string;
+        content?: string;
+        contentJson?: Record<string, unknown> | null;
+        status?: "empty" | "active";
+      }
+    | null;
+
+  if (!payload) {
+    return jsonError("payload is required", 400);
+  }
+
+  const updated = await updateDoc(userId, id, payload);
+  if (!updated) {
+    return jsonError("document not found", 404);
+  }
+
+  return jsonOk({ doc: updated });
+}

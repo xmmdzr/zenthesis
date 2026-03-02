@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  sessions     UserSession[]
+  preferences  UserPreference?
+  docs         Document[]
+  libraryItems LibraryItem[]
+  usageQuotas  UsageQuota[]
+  conversations AIConversation[]
+}
+
+model UserSession {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model UserPreference {
+  userId    String   @id
+  theme     String   @default("system")
+  locale    String   @default("zh")
+  updatedAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  content     String   @default("")
+  contentJson Json?
+  status      String   @default("empty")
+  draftType   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model LibraryItem {
+  id         String   @id @default(cuid())
+  userId     String
+  sourceType String
+  title      String
+  authors    String   @default("[]")
+  year       Int?
+  venue      String?
+  doi        String?
+  url        String?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversations AIConversationLibraryItem[]
+
+  @@index([userId])
+}
+
+model UsageQuota {
+  id           String   @id @default(cuid())
+  userId       String
+  period       String
+  monthlyLimit Int      @default(600)
+  consumed     Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, period])
+  @@index([userId])
+}
+
+model AIConversation {
+  id            String                      @id @default(cuid())
+  userId        String
+  title         String
+  preview       String                      @default("")
+  lastMessageAt DateTime                    @default(now())
+  createdAt     DateTime                    @default(now())
+  updatedAt     DateTime                    @updatedAt
+  user          User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages      AIMessage[]
+  attachments   AIConversationLibraryItem[]
+
+  @@index([userId])
+  @@index([lastMessageAt])
+}
+
+model AIMessage {
+  id             String         @id @default(cuid())
+  conversationId String
+  role           String
+  content        String
+  useWeb         Boolean        @default(false)
+  useLibrary     Boolean        @default(false)
+  useCurrentDoc  Boolean        @default(false)
+  contextDocId   String?
+  createdAt      DateTime       @default(now())
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([createdAt])
+}
+
+model AIConversationLibraryItem {
+  id             String         @id @default(cuid())
+  conversationId String
+  libraryItemId  String
+  createdAt      DateTime       @default(now())
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  libraryItem    LibraryItem    @relation(fields: [libraryItemId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, libraryItemId])
+  @@index([conversationId])
+  @@index([libraryItemId])
+}

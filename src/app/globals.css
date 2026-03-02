@@ -1,0 +1,139 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f3f3f6;
+  --foreground: #11121a;
+  --card: #ffffff;
+  --surface: #ececf3;
+  --muted-foreground: #7a7b87;
+  --border: #d9dae5;
+  --accent: #4f46e5;
+  --accent-foreground: #f5f6ff;
+}
+
+.dark {
+  --background: #141522;
+  --foreground: #eceeff;
+  --card: #1b1d2d;
+  --surface: #252841;
+  --muted-foreground: #9da0bb;
+  --border: #323754;
+  --accent: #7b73ff;
+  --accent-foreground: #16182b;
+}
+
+@theme inline {
+  --font-sans: var(--font-grotesk);
+  --font-mono: var(--font-plex-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-grotesk), sans-serif;
+}
+
+a {
+  color: inherit;
+}
+
+.masonry-grid {
+  column-gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .masonry-grid {
+    column-count: 2;
+  }
+}
+
+@media (min-width: 1200px) {
+  .masonry-grid {
+    column-count: 3;
+  }
+}
+
+.masonry-item {
+  break-inside: avoid;
+}
+
+.zenthesis-editor .tiptap {
+  min-height: 420px;
+  outline: none;
+  font-size: 1rem;
+  line-height: 1.8;
+  color: var(--foreground);
+}
+
+.zenthesis-editor .tiptap h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-top: 0.7rem;
+  margin-bottom: 0.7rem;
+}
+
+.zenthesis-editor .tiptap h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.zenthesis-editor .tiptap h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.zenthesis-editor .tiptap p {
+  margin-top: 0.45rem;
+  margin-bottom: 0.45rem;
+}
+
+.zenthesis-editor .tiptap ul,
+.zenthesis-editor .tiptap ol {
+  margin-left: 1.2rem;
+  padding-left: 0.7rem;
+}
+
+.zenthesis-editor .tiptap blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 0.8rem;
+  color: var(--muted-foreground);
+}
+
+.zenthesis-editor .tiptap pre {
+  background: #10131f;
+  color: #f2f4ff;
+  border-radius: 0.5rem;
+  padding: 0.8rem;
+  overflow-x: auto;
+}
+
+.zenthesis-editor .tiptap table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.zenthesis-editor .tiptap td,
+.zenthesis-editor .tiptap th {
+  border: 1px solid var(--border);
+  padding: 0.45rem 0.55rem;
+}
+
+.zenthesis-editor .tiptap img {
+  max-width: 100%;
+  border-radius: 0.5rem;
+}
