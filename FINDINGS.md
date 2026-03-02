@@ -558,8 +558,9 @@
 - Confirmed repository has no plain-text DeepSeek key in tracked source.
 - Applied branch protection to `main`: PR review required (1), stale review dismissal enabled, and status check `quality` required.
 - README now includes Vercel deployment checklist and collaboration process.
+- Fixed CI install mismatch by syncing lock graph and adding explicit dev dependencies `@floating-ui/dom@1.7.5` and `magicast@0.3.5` so GitHub `npm ci` can install deterministically.
 - Residual risks:
-- `quality` required check becomes enforceable only after GitHub Actions run at least once on branch updates.
+- Collaboration policy currently allows admin bypass to push directly to protected branch; enforce PR-only policy at team process level.
 - Key rotation remains an external mandatory step in DeepSeek console.
 - Next milestone entry:
 - GitHub launch plan closed.

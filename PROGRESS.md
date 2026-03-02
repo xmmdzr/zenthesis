@@ -524,5 +524,6 @@
 - Verified no tracked `.env.local`, no tracked media files, and no plain-text DeepSeek key in repository files.
 - Applied branch protection rules on `main` (required PR review + required status check `quality`).
 - Kept README deployment checklist for Vercel handoff.
+- Addressed GitHub Actions `npm ci` lock mismatch and synchronized dependency graph (`@floating-ui/dom@1.7.5`, `magicast@0.3.5`) so CI can install reliably.
 - Residual risk: external key rotation and collaborator invitations are manual owner actions.
 - Next milestone: Closed.
