@@ -527,3 +527,25 @@
 - Addressed GitHub Actions `npm ci` lock mismatch and synchronized dependency graph (`@floating-ui/dom@1.7.5`, `magicast@0.3.5`) so CI can install reliably.
 - Residual risk: external key rotation and collaborator invitations are manual owner actions.
 - Next milestone: Closed.
+
+## Milestone Logs (2026-03-02 Vercel Build Patch: Prisma Generate)
+- Milestone: 1 - Prisma generate hook for build stability
+- Goal: Prevent Vercel build-time failure when collecting page data for `/api/ai/autocomplete`.
+- Completed:
+- Added `postinstall: prisma generate` and updated `build` to `prisma generate && next build`.
+- Residual risk: Production still depends on correct `DATABASE_URL` in Vercel.
+- Next milestone: 2 - deployment documentation update.
+
+- Milestone: 2 - Deployment documentation update
+- Goal: Make Vercel setup requirements explicit for runtime success.
+- Completed:
+- Added required env var list and persistent DB recommendation in README deployment section.
+- Residual risk: Manual env sync in Vercel dashboard still required.
+- Next milestone: Final validation.
+
+- Milestone: Final validation
+- Goal: Verify patch solves local build chain.
+- Completed:
+- `npm run build` passed and route collection completed for `/api/ai/autocomplete`.
+- Residual risk: Vercel may need cache-clear redeploy once.
+- Next milestone: Closed.

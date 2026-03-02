@@ -4,6 +4,11 @@
 - Update cadence: `TASK_PLAN.md`, `FINDINGS.md`, and `PROGRESS.md` are updated once per completed milestone.
 - No action-level logging inside a milestone.
 
+## Milestone Plan (2026-03-02 Vercel Build Patch: Prisma Generate)
+- [x] Milestone 1: Ensure Prisma Client generation in install/build (`postinstall`, `build`)
+- [x] Milestone 2: Update deployment doc with required Vercel env + database guidance
+- [x] Final validation: local `npm run build` passes with `/api/ai/autocomplete` route collection
+
 ## Milestone Plan (2026-03-02 GitHub Launch + Collaboration)
 - [x] Milestone 1: Repository cleanup and security prep (`.gitignore` media exclusions, local key placeholder)
 - [x] Milestone 2: Initialize git and create initial commit baseline

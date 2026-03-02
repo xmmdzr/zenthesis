@@ -66,6 +66,7 @@ CI runs the same checks for pushes and pull requests.
 ## Deployment (Vercel)
 
 1. Import this repository in Vercel.
-2. Configure environment variables in Vercel project settings.
-3. Enable Preview Deployments for PRs.
-4. Use production URL for public viewing and PR preview URLs for review.
+2. Configure environment variables in Vercel project settings (`DATABASE_URL`, `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`, `DEEPSEEK_BASE_URL`, `AI_TIMEOUT_MS`).
+3. Use an external persistent database URL for production (recommended: Postgres). Avoid relying on local SQLite files in Vercel runtime.
+4. Enable Preview Deployments for PRs.
+5. Use production URL for public viewing and PR preview URLs for review.

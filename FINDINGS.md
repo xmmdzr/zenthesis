@@ -564,3 +564,30 @@
 - Key rotation remains an external mandatory step in DeepSeek console.
 - Next milestone entry:
 - GitHub launch plan closed.
+
+## Milestone Findings (2026-03-02 Vercel Build Patch: Prisma Generate)
+### Milestone 1: Prisma generate hook for Vercel build
+- Completed:
+- Added `postinstall` script to run `prisma generate` after dependency install.
+- Updated `build` script to `prisma generate && next build` so API route collection does not fail due to missing Prisma client artifacts.
+- Residual risks:
+- Vercel still requires a valid `DATABASE_URL`; runtime persistence should use external Postgres for production.
+- Next milestone entry:
+- Milestone 2: deployment docs clarification.
+
+### Milestone 2: Deployment docs clarification
+- Completed:
+- Updated README deployment section with required Vercel environment variables and persistent database guidance.
+- Residual risks:
+- Existing Vercel project variables must be manually updated by project owner.
+- Next milestone entry:
+- Final validation.
+
+### Final validation
+- Completed:
+- Local `npm run build` passed with `prisma generate` preceding Next build.
+- Confirmed `/api/ai/autocomplete` route remains buildable after patch.
+- Residual risks:
+- Vercel build cache may need clear-redeploy once after script change.
+- Next milestone entry:
+- Patch complete.
