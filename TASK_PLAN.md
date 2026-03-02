@@ -8,8 +8,8 @@
 - [x] Milestone 1: Repository cleanup and security prep (`.gitignore` media exclusions, local key placeholder)
 - [x] Milestone 2: Initialize git and create initial commit baseline
 - [x] Milestone 3: Collaboration guardrails (`README` contribution flow + PR template + CODEOWNERS + CI workflow)
-- [ ] Milestone 4: GitHub remote push and visibility verification
-- [ ] Milestone 5: Optional Vercel linkage checklist and final handoff verification
+- [x] Milestone 4: GitHub remote push and visibility verification
+- [x] Milestone 5: Optional Vercel linkage checklist and final handoff verification
 
 ## Milestone Plan (2026-03-02 V3.2 Autocomplete Stability + Source Fallback)
 - [x] Milestone 1: Align history conversation delete action column and keep confirm flow stable

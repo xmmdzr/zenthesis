@@ -507,3 +507,22 @@
 - Updated README with contribution and deployment process.
 - Residual risk: CODEOWNERS username may need replacement after GitHub repo is created.
 - Next milestone: 4 - Remote push and visibility verification.
+
+- Milestone: 4 - GitHub remote push and visibility verification
+- Goal: Publish repository publicly and validate remote accessibility.
+- Completed:
+- Created GitHub repository `https://github.com/xmmdzr/zenthesis`.
+- Pushed `main` branch and set upstream tracking.
+- Added local SSH public key to GitHub to resolve push permission errors.
+- Verified remote state and repository visibility (`PUBLIC`, default `main`).
+- Residual risk: collaborator accounts are not yet invited.
+- Next milestone: 5 - Final governance checks and handoff closure.
+
+- Milestone: 5 - Final governance checks and handoff
+- Goal: Ensure repository is collaboration-ready and secure by default.
+- Completed:
+- Verified no tracked `.env.local`, no tracked media files, and no plain-text DeepSeek key in repository files.
+- Applied branch protection rules on `main` (required PR review + required status check `quality`).
+- Kept README deployment checklist for Vercel handoff.
+- Residual risk: external key rotation and collaborator invitations are manual owner actions.
+- Next milestone: Closed.

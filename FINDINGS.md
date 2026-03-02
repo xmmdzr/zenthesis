@@ -541,3 +541,25 @@
 - CODEOWNERS handle must be updated to actual GitHub account/team after remote repo creation.
 - Next milestone entry:
 - Milestone 4: remote setup and push verification.
+
+### Milestone 4: Remote repository push and visibility verification
+- Completed:
+- Created public GitHub repository `xmmdzr/zenthesis` and pushed local `main` branch.
+- Resolved push auth blockers by adding local SSH key to GitHub account and switching origin to SSH.
+- Verified repository metadata (`PUBLIC`, default branch `main`) and clean remote tracking.
+- Residual risks:
+- Collaborator invitations are still pending because target GitHub usernames were not provided.
+- Next milestone entry:
+- Milestone 5: final handoff verification and governance checks.
+
+### Milestone 5: Final governance and handoff checks
+- Completed:
+- Confirmed tracked files exclude local media assets and `.env.local`.
+- Confirmed repository has no plain-text DeepSeek key in tracked source.
+- Applied branch protection to `main`: PR review required (1), stale review dismissal enabled, and status check `quality` required.
+- README now includes Vercel deployment checklist and collaboration process.
+- Residual risks:
+- `quality` required check becomes enforceable only after GitHub Actions run at least once on branch updates.
+- Key rotation remains an external mandatory step in DeepSeek console.
+- Next milestone entry:
+- GitHub launch plan closed.
