@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
@@ -23,17 +25,21 @@ function toJsonInput(
   return value as Prisma.InputJsonValue;
 }
 
-function mapDoc(row: {
-  id: string;
-  userId: string;
-  title: string;
-  content: string;
-  contentJson: unknown;
-  status: string;
-  draftType: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}): DocumentItem {
+function mapDoc(
+  row: {
+    id: string;
+    userId: string;
+    title: string;
+    content: string;
+    contentJson: unknown;
+    status: string;
+    draftType: string | null;
+    isSample: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+  currentUserId: string,
+): DocumentItem {
   return {
     id: row.id,
     userId: row.userId,
@@ -42,6 +48,8 @@ function mapDoc(row: {
     contentJson: toObject(row.contentJson),
     status: row.status === "active" ? "active" : "empty",
     draftType: row.draftType as DocumentItem["draftType"],
+    isSample: Boolean(row.isSample),
+    isOwner: row.userId === currentUserId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -50,18 +58,20 @@ function mapDoc(row: {
 function seedDocs(userId: string): DocumentItem[] {
   return [
     {
-      id: "doc-1",
+      id: randomUUID(),
       userId,
       title: "气候变化与海洋生态研究",
       content: "",
       contentJson: null,
       status: "empty",
       draftType: "standard",
+      isSample: true,
+      isOwner: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
     {
-      id: "doc-2",
+      id: randomUUID(),
       userId,
       title: "城市韧性政策评估框架",
       content:
@@ -69,71 +79,135 @@ function seedDocs(userId: string): DocumentItem[] {
       contentJson: null,
       status: "active",
       draftType: "smart",
+      isSample: true,
+      isOwner: true,
       createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
       updatedAt: new Date().toISOString(),
     },
   ];
 }
 
+function toUsernameSeed(userId: string) {
+  const normalized = userId.toLowerCase().replace(/[^a-z0-9_]/g, "");
+  const base = normalized.length >= 6 ? normalized.slice(0, 10) : `${normalized}user1234`;
+  return base.slice(0, 10) || "user1234";
+}
+
 async function ensureUser(userId: string) {
-  await prisma.user.upsert({
+  const existing = await prisma.user.findUnique({
     where: { id: userId },
-    update: {},
-    create: {
-      id: userId,
-      email: `${userId}@local.zenthesis.dev`,
-      passwordHash: "mock-password",
-      name: userId,
-    },
+    select: { id: true },
   });
+  if (existing) {
+    return;
+  }
+
+  const base = toUsernameSeed(userId);
+  let attempt = 0;
+  while (attempt < 8) {
+    const suffix = attempt === 0 ? "" : String(attempt);
+    const candidate = `${base.slice(0, Math.max(1, 10 - suffix.length))}${suffix}`;
+    try {
+      await prisma.user.create({
+        data: {
+          id: userId,
+          email: `${userId}@local.zenthesis.dev`,
+          username: candidate,
+          passwordHash: "mock-password",
+          name: candidate,
+        },
+      });
+      return;
+    } catch (error: unknown) {
+      if (typeof error === "object" && error && "code" in error) {
+        attempt += 1;
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error("failed to ensure fallback user");
+}
+
+async function seedOwnerDocs(userId: string) {
+  const existingCount = await prisma.document.count({ where: { userId } });
+  if (existingCount > 0) {
+    return;
+  }
+
+  const seeded = seedDocs(userId);
+  for (const item of seeded) {
+    await prisma.document.create({
+      data: {
+        id: item.id,
+        userId,
+        title: item.title,
+        content: item.content,
+        contentJson: toJsonInput(item.contentJson),
+        status: item.status,
+        draftType: item.draftType,
+        isSample: true,
+        createdAt: new Date(item.createdAt),
+        updatedAt: new Date(item.updatedAt),
+      },
+    });
+  }
 }
 
 export async function listDocs(userId: string): Promise<DocumentItem[]> {
   try {
     await ensureUser(userId);
+    await seedOwnerDocs(userId);
+
     const rows = await prisma.document.findMany({
-      where: { userId },
+      where: {
+        OR: [
+          { userId },
+          {
+            collaborators: {
+              some: { userId },
+            },
+          },
+        ],
+      },
       orderBy: { updatedAt: "desc" },
     });
 
-    if (rows.length === 0) {
-      for (const seeded of seedDocs(userId)) {
-        await prisma.document.create({
-          data: {
-            id: seeded.id,
-            userId,
-            title: seeded.title,
-            content: seeded.content,
-            contentJson: toJsonInput(seeded.contentJson),
-            status: seeded.status,
-            draftType: seeded.draftType,
-            createdAt: new Date(seeded.createdAt),
-            updatedAt: new Date(seeded.updatedAt),
-          },
-        });
-      }
-
-      return seedDocs(userId);
-    }
-
-    return rows.map(mapDoc);
+    return rows.map((row) => mapDoc(row, userId));
   } catch {
     if (!docsStore.has(userId)) {
       docsStore.set(userId, seedDocs(userId));
     }
 
-    return docsStore.get(userId) ?? [];
+    return (docsStore.get(userId) ?? []).map((doc) => ({
+      ...doc,
+      isOwner: true,
+    }));
   }
 }
 
 export async function getDoc(userId: string, docId: string): Promise<DocumentItem | undefined> {
   try {
-    const row = await prisma.document.findFirst({ where: { userId, id: docId } });
+    const row = await prisma.document.findFirst({
+      where: {
+        id: docId,
+        OR: [
+          { userId },
+          {
+            collaborators: {
+              some: { userId },
+            },
+          },
+        ],
+      },
+    });
+
     if (!row) {
       return undefined;
     }
 
-    return mapDoc(row);
+    return mapDoc(row, userId);
   } catch {
     const docs = await listDocs(userId);
     return docs.find((item) => item.id === docId);
@@ -164,10 +238,11 @@ export async function createDoc(
         }),
         status: "active",
         draftType: payload.draftType ?? "standard",
+        isSample: false,
       },
     });
 
-    return mapDoc(row);
+    return mapDoc(row, userId);
   } catch {
     const newDoc: DocumentItem = {
       id: `doc-${Date.now()}`,
@@ -180,6 +255,8 @@ export async function createDoc(
       },
       status: "active",
       draftType: payload.draftType ?? "standard",
+      isSample: false,
+      isOwner: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -202,6 +279,27 @@ export async function updateDoc(
         : undefined;
 
   try {
+    const accessible = await prisma.document.findFirst({
+      where: {
+        id: docId,
+        OR: [
+          { userId },
+          {
+            collaborators: {
+              some: { userId },
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!accessible) {
+      return undefined;
+    }
+
     const row = await prisma.document.update({
       where: { id: docId },
       data: {
@@ -216,14 +314,10 @@ export async function updateDoc(
       },
     });
 
-    if (row.userId !== userId) {
-      return undefined;
-    }
-
-    return mapDoc(row);
+    return mapDoc(row, userId);
   } catch {
     const docs = await listDocs(userId);
-    const target = docs.find((item) => item.id === docId);
+    const target = docs.find((item) => item.id === docId && item.isOwner);
 
     if (!target) {
       return undefined;
@@ -247,5 +341,23 @@ export async function updateDoc(
 
     target.updatedAt = new Date().toISOString();
     return target;
+  }
+}
+
+export async function deleteDoc(userId: string, docId: string) {
+  try {
+    const result = await prisma.document.deleteMany({
+      where: {
+        id: docId,
+        userId,
+      },
+    });
+
+    return result.count > 0;
+  } catch {
+    const current = docsStore.get(userId) ?? [];
+    const next = current.filter((item) => item.id !== docId);
+    docsStore.set(userId, next);
+    return next.length !== current.length;
   }
 }

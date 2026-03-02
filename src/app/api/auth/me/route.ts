@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 
 import { getSessionUserIdFromRequest } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
+import { ensureStartupBackfill } from "@/lib/startup-backfill";
 
 export async function GET(request: Request) {
+  await ensureStartupBackfill();
+
   const userId = await getSessionUserIdFromRequest(request);
   if (!userId) {
     return NextResponse.json({ authenticated: false }, { status: 401 });
@@ -14,6 +17,7 @@ export async function GET(request: Request) {
     select: {
       id: true,
       email: true,
+      username: true,
       name: true,
     },
   });

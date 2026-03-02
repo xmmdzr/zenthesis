@@ -549,3 +549,33 @@
 - `npm run build` passed and route collection completed for `/api/ai/autocomplete`.
 - Residual risk: Vercel may need cache-clear redeploy once.
 - Next milestone: Closed.
+
+## Milestone Log (2026-03-02 23:42:27 CST) - M1
+- 动作摘要：完成用户模型与注册链路改造（username 字段、注册校验、登录态返回统一、左上展示来源切换）。
+- 命令/操作：更新 Prisma schema、auth routes、register page、workspace user 映射。
+- 测试结果：静态代码检查通过（待全量 lint/test/build 在 M5 统一执行）。
+- 回滚点：`git checkout -- prisma/schema.prisma src/app/api/auth/* src/app/auth/register/page.tsx src/components/workspace-ui-context.tsx`。
+
+## Milestone Log (2026-03-02 23:42:27 CST) - M2
+- 动作摘要：完成示例文档标注与删除流程（后端 DELETE + 侧栏确认弹层 + 删除后路由回退）。
+- 命令/操作：更新 docs-store、docs id route、workspace-secondary-panel、workspace-ui-context。
+- 测试结果：手动代码复核通过（待 M5 统一跑自动化）。
+- 回滚点：`git checkout -- src/lib/docs-store.ts src/app/api/docs/[id]/route.ts src/components/workspace-secondary-panel.tsx src/components/workspace-ui-context.tsx`。
+
+## Milestone Log (2026-03-02 23:48:17 CST) - M3
+- 动作摘要：完成文档导出真下载链路（DOCX/PDF）。
+- 命令/操作：安装 `docx pdf-lib @tiptap/html`；新增 `document-export`；改造 `/api/docs/[id]/export` 与编辑页导出菜单。
+- 测试结果：导出路由通过 TypeScript 构建检查。
+- 回滚点：`git checkout -- src/lib/document-export.ts src/app/api/docs/[id]/export/route.ts src/components/document-editor-pane.tsx package.json package-lock.json`。
+
+## Milestone Log (2026-03-02 23:48:17 CST) - M4
+- 动作摘要：完成分享链接与协作访问主链，接入 Supabase Realtime 广播同步。
+- 命令/操作：新增 share store、分享 API、`/api/shared/[token]`、`/app/shared/[token]`；编辑器加入 realtime channel 同步。
+- 测试结果：构建通过，路由生成清单包含新增分享与协作路由。
+- 回滚点：`git checkout -- src/lib/share-store.ts src/app/api/docs/[id]/share/route.ts src/app/api/shared/[token]/route.ts src/app/app/shared/[token]/page.tsx src/components/rich-document-editor.tsx`。
+
+## Milestone Log (2026-03-02 23:48:17 CST) - M5
+- 动作摘要：完成全量回归与发布前检查。
+- 命令/操作：执行 `npm run lint`、`npm run test`、`npm run build`；执行 `prisma db push` 与 `prisma migrate diff` 更新 `bootstrap.sql`。
+- 测试结果：三项门槛全部通过；Next build 成功输出新增 API/页面路由。
+- 回滚点：`git checkout -- prisma/bootstrap.sql prisma/schema.prisma src/app/auth/login/page.tsx src/lib/i18n/messages/*.ts`。

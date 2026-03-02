@@ -26,6 +26,8 @@ export interface DocumentItem {
   contentJson?: Record<string, unknown> | null;
   status: "empty" | "active";
   draftType?: "standard" | "smart" | "blank";
+  isSample?: boolean;
+  isOwner?: boolean;
   createdAt: string;
   updatedAt: string;
 }

@@ -38,7 +38,11 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/app/docs");
+    const nextPath =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("next")
+        : null;
+    router.push(nextPath || "/app/docs");
   }
 
   return (

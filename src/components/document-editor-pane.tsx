@@ -1,6 +1,23 @@
 "use client";
 
-import { BookText, ChevronDown, ChevronUp, FileUp, MessageSquareMore, PenSquare, Save, Settings2, ShieldCheck, Share2 } from "lucide-react";
+import {
+  BookText,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Download,
+  FileDown,
+  FileUp,
+  Link2,
+  LoaderCircle,
+  MessageSquareMore,
+  PenSquare,
+  Save,
+  Settings2,
+  ShieldCheck,
+  Share2,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useI18n } from "@/components/i18n-provider";
@@ -100,6 +117,19 @@ function normalizeAutoCompleteSettings(raw?: Partial<AutoCompleteSettings>): Aut
   };
 }
 
+function pickFileName(header: string | null, fallback: string) {
+  if (!header) {
+    return fallback;
+  }
+
+  const match = header.match(/filename=\"?([^\";]+)\"?/i);
+  if (!match?.[1]) {
+    return fallback;
+  }
+
+  return decodeURIComponent(match[1]);
+}
+
 const starterCardMap = [
   {
     key: "prompt",
@@ -146,6 +176,13 @@ function EditorContent({ currentDoc }: { currentDoc: DocumentItem | null }) {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [autoCompleteEnabled, setAutoCompleteEnabled] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isShareOpen, setShareOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string>("");
+  const [shareStatus, setShareStatus] = useState<"idle" | "existing" | "none">("idle");
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState<"docx" | "pdf" | null>(null);
+  const [isExportMenuOpen, setExportMenuOpen] = useState(false);
   const currentDocId = currentDoc?.id;
   const settingsPanelRef = useRef<HTMLDivElement | null>(null);
   const settingsToggleRef = useRef<HTMLButtonElement | null>(null);
@@ -172,6 +209,10 @@ function EditorContent({ currentDoc }: { currentDoc: DocumentItem | null }) {
       ),
     [libraryItems],
   );
+  const sharePanelRef = useRef<HTMLDivElement | null>(null);
+  const shareToggleRef = useRef<HTMLButtonElement | null>(null);
+  const exportPanelRef = useRef<HTMLDivElement | null>(null);
+  const exportToggleRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (!currentDocId) {
@@ -197,6 +238,40 @@ function EditorContent({ currentDoc }: { currentDoc: DocumentItem | null }) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [settingsOpen]);
+
+  useEffect(() => {
+    if (!isShareOpen) {
+      return;
+    }
+
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      if (sharePanelRef.current?.contains(target) || shareToggleRef.current?.contains(target)) {
+        return;
+      }
+      setShareOpen(false);
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isShareOpen]);
+
+  useEffect(() => {
+    if (!isExportMenuOpen) {
+      return;
+    }
+
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      if (exportPanelRef.current?.contains(target) || exportToggleRef.current?.contains(target)) {
+        return;
+      }
+      setExportMenuOpen(false);
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isExportMenuOpen]);
 
   const requestAutoComplete = useCallback(async (payload: {
     content: string;
@@ -261,6 +336,112 @@ function EditorContent({ currentDoc }: { currentDoc: DocumentItem | null }) {
     setSaveState("error");
   }, [currentDoc, dirty, titleDraft, contentDraft, contentJsonDraft, updateDocument]);
 
+  const openSharePanel = useCallback(async () => {
+    if (!currentDoc) {
+      return;
+    }
+
+    setShareOpen((prev) => !prev);
+    setShareError(null);
+    if (isShareOpen) {
+      return;
+    }
+
+    setShareLoading(true);
+    const response = await fetch(`/api/docs/${currentDoc.id}/share`, {
+      cache: "no-store",
+    }).catch(() => null);
+    setShareLoading(false);
+
+    if (!response || !response.ok) {
+      setShareStatus("none");
+      return;
+    }
+
+    const result = (await response.json()) as { share?: { id: string } | null };
+    setShareStatus(result.share ? "existing" : "none");
+  }, [currentDoc, isShareOpen]);
+
+  const createShareLink = useCallback(async () => {
+    if (!currentDoc) {
+      return;
+    }
+
+    setShareLoading(true);
+    setShareError(null);
+    const response = await fetch(`/api/docs/${currentDoc.id}/share`, {
+      method: "POST",
+    }).catch(() => null);
+    setShareLoading(false);
+
+    if (!response || !response.ok) {
+      const failed = response ? ((await response.json().catch(() => null)) as { error?: string } | null) : null;
+      setShareError(failed?.error || "failed to create share link");
+      return;
+    }
+
+    const result = (await response.json()) as { share: { shareUrl: string } };
+    setShareUrl(result.share.shareUrl);
+    setShareStatus("existing");
+  }, [currentDoc]);
+
+  const revokeShare = useCallback(async () => {
+    if (!currentDoc) {
+      return;
+    }
+
+    setShareLoading(true);
+    setShareError(null);
+    const response = await fetch(`/api/docs/${currentDoc.id}/share`, {
+      method: "DELETE",
+    }).catch(() => null);
+    setShareLoading(false);
+
+    if (!response || !response.ok) {
+      const failed = response ? ((await response.json().catch(() => null)) as { error?: string } | null) : null;
+      setShareError(failed?.error || "failed to revoke share link");
+      return;
+    }
+
+    setShareStatus("none");
+    setShareUrl("");
+  }, [currentDoc]);
+
+  const exportDocument = useCallback(async (format: "docx" | "pdf") => {
+    if (!currentDoc) {
+      return;
+    }
+
+    setExporting(format);
+    const response = await fetch(`/api/docs/${currentDoc.id}/export`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ format }),
+    }).catch(() => null);
+    setExporting(null);
+
+    if (!response || !response.ok) {
+      return;
+    }
+
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const fileName = pickFileName(
+      response.headers.get("content-disposition"),
+      `${currentDoc.title || "untitled"}.${format}`,
+    );
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(objectUrl);
+    setExportMenuOpen(false);
+  }, [currentDoc]);
+
   useEffect(() => {
     if (!dirty || !currentDoc) {
       return;
@@ -287,13 +468,122 @@ function EditorContent({ currentDoc }: { currentDoc: DocumentItem | null }) {
           className="w-full max-w-[420px] rounded-lg bg-transparent px-2 py-1 text-lg font-semibold outline-none focus:bg-[color:var(--surface)]"
         />
 
-        <div className="ml-3 flex items-center gap-4 text-[color:var(--muted-foreground)]">
-          <button type="button" className="inline-flex items-center gap-1 transition hover:text-[color:var(--foreground)]">
-            <Share2 className="h-4 w-4" /> {t("common.share")}
-          </button>
+        <div className="relative ml-3 flex items-center gap-4 text-[color:var(--muted-foreground)]">
+          {currentDoc?.isOwner !== false && (
+            <button
+              ref={shareToggleRef}
+              type="button"
+              onClick={() => {
+                void openSharePanel();
+              }}
+              className="inline-flex items-center gap-1 transition hover:text-[color:var(--foreground)]"
+            >
+              <Share2 className="h-4 w-4" /> {t("common.share")}
+            </button>
+          )}
+          {isShareOpen && currentDoc?.isOwner !== false && (
+            <div
+              ref={sharePanelRef}
+              className="absolute right-[240px] top-[calc(100%+8px)] z-30 w-[340px] rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-3 shadow-xl"
+            >
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-[color:var(--foreground)]">{t("doc.shareTitle")}</h4>
+                <button
+                  type="button"
+                  onClick={() => setShareOpen(false)}
+                  className="rounded p-1 hover:bg-[color:var(--surface)]"
+                  aria-label={t("common.close")}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-[color:var(--muted-foreground)]">{t("doc.shareHint")}</p>
+              {shareError && <p className="mt-2 text-xs text-red-500">{shareError}</p>}
+              {shareUrl ? (
+                <div className="mt-3 space-y-2">
+                  <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-2 py-2 text-xs">
+                    <span className="line-clamp-2 break-all">{shareUrl}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(shareUrl);
+                      }}
+                      className="inline-flex items-center gap-1 rounded-md border border-[color:var(--border)] px-2 py-1.5 text-xs"
+                    >
+                      <Copy className="h-3.5 w-3.5" /> {t("doc.copyLink")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void revokeShare();
+                      }}
+                      className="inline-flex items-center gap-1 rounded-md border border-red-300 px-2 py-1.5 text-xs text-red-600"
+                    >
+                      {t("doc.revokeLink")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void createShareLink();
+                    }}
+                    disabled={shareLoading}
+                    className="inline-flex items-center gap-1 rounded-md bg-[color:var(--accent)] px-3 py-1.5 text-xs font-semibold text-[color:var(--accent-foreground)] disabled:opacity-60"
+                  >
+                    {shareLoading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+                    {shareStatus === "existing" ? t("doc.generateNewLink") : t("doc.createLink")}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           <button type="button" className="inline-flex items-center gap-1 transition hover:text-[color:var(--foreground)]">
             <ShieldCheck className="h-4 w-4" /> {t("common.review")}
           </button>
+          <div className="relative">
+            <button
+              ref={exportToggleRef}
+              type="button"
+              onClick={() => setExportMenuOpen((prev) => !prev)}
+              className="inline-flex items-center gap-1 transition hover:text-[color:var(--foreground)]"
+            >
+              <Download className="h-4 w-4" /> {t("common.export")}
+            </button>
+            {isExportMenuOpen && (
+              <div
+                ref={exportPanelRef}
+                className="absolute right-0 top-[calc(100%+8px)] z-30 w-[180px] rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-2 shadow-xl"
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    void exportDocument("docx");
+                  }}
+                  disabled={exporting !== null}
+                  className="inline-flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-[color:var(--surface)] disabled:opacity-60"
+                >
+                  {exporting === "docx" ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                  {t("doc.exportDocx")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void exportDocument("pdf");
+                  }}
+                  disabled={exporting !== null}
+                  className="inline-flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-[color:var(--surface)] disabled:opacity-60"
+                >
+                  {exporting === "pdf" ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                  {t("doc.exportPdf")}
+                </button>
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => void persist()}
@@ -352,6 +642,9 @@ function EditorContent({ currentDoc }: { currentDoc: DocumentItem | null }) {
             title={titleDraft}
             initialText={contentDraft}
             initialJson={contentJsonDraft}
+            editable
+            collabUserId={user.id}
+            collabUserName={user.name}
             autoCompleteEnabled={autoCompleteEnabled}
             autoCompleteSettings={autoCompleteSettings}
             onRequestAutoComplete={requestAutoComplete}

@@ -10,13 +10,16 @@ datasource db {
 model User {
   id           String         @id @default(cuid())
   email        String         @unique
+  username     String?        @unique
   passwordHash String
   name         String?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   sessions     UserSession[]
   preferences  UserPreference?
-  docs         Document[]
+  docs         Document[]     @relation("DocumentOwner")
+  sharedDocs   DocumentCollaborator[]
+  shareLinks   DocumentShareLink[]
   libraryItems LibraryItem[]
   usageQuotas  UsageQuota[]
   conversations AIConversation[]
@@ -49,10 +52,44 @@ model Document {
   contentJson Json?
   status      String   @default("empty")
   draftType   String?
+  isSample    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User     @relation("DocumentOwner", fields: [userId], references: [id], onDelete: Cascade)
+  collaborators DocumentCollaborator[]
+  shareLinks  DocumentShareLink[]
 
+  @@index([userId])
+}
+
+model DocumentShareLink {
+  id        String   @id @default(cuid())
+  docId     String
+  ownerId   String
+  tokenHash String   @unique
+  canEdit   Boolean  @default(true)
+  revokedAt DateTime?
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  doc       Document @relation(fields: [docId], references: [id], onDelete: Cascade)
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([docId, revokedAt])
+  @@index([ownerId])
+}
+
+model DocumentCollaborator {
+  id        String   @id @default(cuid())
+  docId     String
+  userId    String
+  role      String   @default("editor")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  doc       Document @relation(fields: [docId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([docId, userId])
   @@index([userId])
 }
 

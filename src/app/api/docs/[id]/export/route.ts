@@ -1,5 +1,6 @@
-import { jsonError, jsonOk } from "@/lib/api";
+import { jsonError } from "@/lib/api";
 import { getDoc } from "@/lib/docs-store";
+import { exportDocx, exportPdf } from "@/lib/document-export";
 import { getRequestUserId } from "@/lib/request-user";
 
 interface RouteContext {
@@ -20,12 +21,15 @@ export async function POST(request: Request, context: RouteContext) {
     return jsonError("document not found", 404);
   }
 
-  return jsonOk({
-    export: {
-      format: payload.format,
-      fileName: `${doc.title.replace(/\s+/g, "-").toLowerCase()}.${payload.format}`,
-      downloadUrl: `/downloads/${id}.${payload.format}`,
-      status: "ready",
+  const exported = payload.format === "docx" ? await exportDocx(doc) : await exportPdf(doc);
+  const body = new Blob([exported.bytes], { type: exported.contentType });
+
+  return new Response(body, {
+    status: 200,
+    headers: {
+      "Content-Type": exported.contentType,
+      "Content-Disposition": `attachment; filename=\"${exported.fileName}\"`,
+      "Cache-Control": "no-store",
     },
   });
 }

@@ -3,8 +3,11 @@ import { NextResponse } from "next/server";
 
 import { createSession, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
+import { ensureStartupBackfill } from "@/lib/startup-backfill";
 
 export async function POST(request: Request) {
+  await ensureStartupBackfill();
+
   const payload = (await request.json().catch(() => null)) as {
     email?: string;
     password?: string;
@@ -33,6 +36,7 @@ export async function POST(request: Request) {
     user: {
       id: user.id,
       email: user.email,
+      username: user.username,
       name: user.name,
     },
     authenticated: true,

@@ -1,5 +1,5 @@
 import { jsonError, jsonOk } from "@/lib/api";
-import { getDoc, updateDoc } from "@/lib/docs-store";
+import { deleteDoc, getDoc, updateDoc } from "@/lib/docs-store";
 import { getRequestUserId } from "@/lib/request-user";
 
 interface RouteContext {
@@ -40,4 +40,16 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   return jsonOk({ doc: updated });
+}
+
+export async function DELETE(request: Request, context: RouteContext) {
+  const userId = await getRequestUserId(request);
+  const { id } = await context.params;
+
+  const deleted = await deleteDoc(userId, id);
+  if (!deleted) {
+    return jsonError("document not found", 404);
+  }
+
+  return jsonOk({ deleted: true });
 }

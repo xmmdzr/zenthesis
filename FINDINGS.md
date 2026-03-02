@@ -591,3 +591,32 @@
 - Vercel build cache may need clear-redeploy once after script change.
 - Next milestone entry:
 - Patch complete.
+
+## Milestone Finding (2026-03-02 23:42:27 CST) - M1
+- 已验证：用户名正则 `^(?=.*[A-Za-z])[A-Za-z0-9_]{6,10}$` 满足“必须有字母，可无数字，可下划线”。
+- 已验证：`/api/auth/me` 返回 username 后，左上角可彻底脱离邮箱展示。
+- 坑点：对现有 SQLite 直接新增 `username @unique` 会触发 `db push` 数据丢失提示，需要 `--accept-data-loss` 并配合回填。
+- 结论：将 schema 兼容设为 `username` 可空 + 启动回填，可平滑过渡到用户名主展示。
+
+## Milestone Finding (2026-03-02 23:42:27 CST) - M2
+- 已验证：静态 seed 文档 ID（`doc-1/doc-2`）在 Prisma 主键层会冲突，必须改随机唯一 ID。
+- 已验证：文档删除应仅允许 owner；shared collaborator 不应拥有删除权限。
+- 坑点：删除当前文档后若不主动路由回退，会停在无效 doc 页面导致“未找到文档”误感知。
+- 结论：删除后立即导航到 next doc 或 `/app/docs/new`，体验最稳定。
+
+## Milestone Finding (2026-03-02 23:48:17 CST) - M3
+- 已验证：原 `export` API 仅返回 fake `downloadUrl`，并未生成文件。
+- 已验证：Next.js Route Handler 中直接返回 `Uint8Array/Buffer` 在 TS 严格类型下不稳定，改为 `Blob` 响应最稳。
+- 坑点：Tiptap JSON 到文档格式存在语义差异，需采用“可用保真”策略避免导出中断。
+- 结论：首版导出可稳定覆盖标题、段落、列表；复杂节点后续迭代增强。
+
+## Milestone Finding (2026-03-02 23:48:17 CST) - M4
+- 已验证：仅靠 `/app/docs/[id]` 路由无法授予共享访问，必须在 token 解析时写入 `DocumentCollaborator`。
+- 已验证：分享链接若要求登录，应在 `/api/shared/[token]` 使用 session 校验而非 `x-user-id` 回退。
+- 坑点：client 端登录页使用 `useSearchParams` 会触发 Next16 静态构建约束，需改为 `window.location.search` 读取。
+- 结论：分享链路采用“登录 -> token 解析 -> collaborator upsert -> 跳文档页”可闭环。
+
+## Milestone Finding (2026-03-02 23:48:17 CST) - M5
+- 已验证：本轮新增功能在 lint/test/build 三个质量门槛下均可通过。
+- 已验证：未配置 Supabase 公钥时实时同步自动降级，不阻塞基础编辑与保存。
+- 风险：历史旧 key 在对话中暴露过，仍需你在外部平台完成轮换并更新部署环境变量。

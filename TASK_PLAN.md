@@ -110,3 +110,58 @@ Build the Zenthesis.ai MVP foundation with theme switching, core routes/shell pa
 
 ## Next Step
 Bind temporary session/document flows to real auth and persistent backend storage.
+
+## Milestone Update (2026-03-02 23:42:27 CST) - M1 完成
+- 目标：账号模型与注册链路升级（username 强校验 + 唯一）
+- 完成项：
+  - [x] Prisma `User` 增加 `username` 唯一字段（迁移兼容为 nullable + 启动回填）
+  - [x] 注册 API 增加 `username` 入参、正则校验、唯一性冲突处理
+  - [x] 注册页增加用户名输入与规则提示
+  - [x] 登录/`/api/auth/me` 返回 `username`
+  - [x] 左上角展示优先使用 `username`
+- 风险：历史数据存在空用户名，需要依赖启动回填在运行中补齐
+- 下一入口：M2 文档示例标注与删除能力
+
+## Milestone Update (2026-03-02 23:42:27 CST) - M2 完成
+- 目标：文档示例标注 + 文档删除（含二次确认）
+- 完成项：
+  - [x] `DocumentItem` 增加 `isSample/isOwner`
+  - [x] seed 文档改为唯一 ID，并标记 `isSample=true`
+  - [x] 新增 `DELETE /api/docs/[id]`，仅 owner 可删
+  - [x] 文档侧栏增加“示例”标签和删除确认弹层
+  - [x] 删除当前文档后自动跳转到下一文档或 `/app/docs/new`
+- 风险：Prisma 不可用时会回退内存存储，协作权限仅在 Prisma 路径完整
+- 下一入口：M3 导出链路真文件下载
+
+## Milestone Update (2026-03-02 23:48:17 CST) - M3 完成
+- 目标：导出能力从占位改为真实文件下载（DOCX/PDF）
+- 完成项：
+  - [x] 接入 `docx`、`pdf-lib`、`@tiptap/html` 相关导出依赖
+  - [x] 新增 `document-export` 转换模块，支持从 Tiptap JSON 生成导出内容
+  - [x] `POST /api/docs/[id]/export` 改为直接返回文件流
+  - [x] 编辑页右上新增导出菜单（Word/PDF）并触发真实下载
+- 风险：复杂富文本（高阶表格/公式）当前按首版策略降级保留，非像素级一致
+- 下一入口：M4 分享链接与协作编辑
+
+## Milestone Update (2026-03-02 23:48:17 CST) - M4 完成
+- 目标：分享链接 + 登录后协作编辑（实时协同）
+- 完成项：
+  - [x] Prisma 增加 `DocumentShareLink`、`DocumentCollaborator`
+  - [x] 新增分享 API：`GET/POST/DELETE /api/docs/[id]/share`
+  - [x] 新增链接解析 API：`GET /api/shared/[token]`
+  - [x] 新增 `/app/shared/[token]` 页面，登录后解析链接并进入文档
+  - [x] 编辑器接入 Supabase Realtime broadcast（`doc:{docId}`）+ presence track
+  - [x] 远端内容更新可同步到本地编辑器，断连时回退现有 autosave
+- 风险：未配置 `NEXT_PUBLIC_SUPABASE_URL/NEXT_PUBLIC_SUPABASE_ANON_KEY` 时仅走非实时 autosave
+- 下一入口：M5 质量门槛与 GitHub 同步
+
+## Milestone Update (2026-03-02 23:48:17 CST) - M5 完成
+- 目标：联调回归 + 发布准备
+- 完成项：
+  - [x] `npm run lint` 通过
+  - [x] `npm run test` 通过
+  - [x] `npm run build` 通过
+  - [x] `bootstrap.sql` 已与最新 Prisma schema 对齐更新
+  - [x] 登录页补充 `next` 跳转，确保分享链接登录后可回跳
+- 风险：分享链接为“创建时返回明文一次”，刷新后需重新生成链接才能再次复制
+- 下一入口：提交代码并推送到 GitHub 分支，发起 PR 合并

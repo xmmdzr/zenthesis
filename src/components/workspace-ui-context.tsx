@@ -53,6 +53,7 @@ interface WorkspaceUIContextValue {
   conversations: ConversationSummary[];
   activeConversationId: string | null;
   isDeletingConversationId: string | null;
+  isDeletingDocId: string | null;
   conversationMessages: ConversationMessage[];
   conversationAttachments: ConversationAttachment[];
   selectedAttachmentIds: string[];
@@ -92,6 +93,7 @@ interface WorkspaceUIContextValue {
     docId: string,
     payload: Partial<Pick<DocumentItem, "title" | "content" | "contentJson" | "status">>,
   ) => Promise<DocumentItem | null>;
+  deleteDocument: (docId: string) => Promise<boolean>;
   refreshDocs: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -147,6 +149,7 @@ export function WorkspaceUIProvider({ children }: { children: ReactNode }) {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [isDeletingConversationId, setDeletingConversationId] = useState<string | null>(null);
+  const [isDeletingDocId, setDeletingDocId] = useState<string | null>(null);
   const [conversationMessages, setConversationMessages] = useState<ConversationMessage[]>([]);
   const [conversationAttachments, setConversationAttachments] = useState<ConversationAttachment[]>([]);
   const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<string[]>([]);
@@ -379,11 +382,11 @@ export function WorkspaceUIProvider({ children }: { children: ReactNode }) {
         }
 
         const result = (await response.json()) as {
-          user?: { id: string; name?: string; email?: string };
+          user?: { id: string; username?: string | null; name?: string | null; email?: string };
         };
 
         if (result.user?.id) {
-          const name = result.user.name || result.user.email || fallbackUser.name;
+          const name = result.user.username || result.user.name || fallbackUser.name;
           setUser({
             id: result.user.id,
             name,
@@ -469,6 +472,41 @@ export function WorkspaceUIProvider({ children }: { children: ReactNode }) {
     return result.doc;
   }, [user.id]);
 
+  const deleteDocument = useCallback(async (docId: string) => {
+    if (!docId || isDeletingDocId) {
+      return false;
+    }
+
+    setDeletingDocId(docId);
+    try {
+      const response = await fetch(`/api/docs/${docId}`, {
+        method: "DELETE",
+        headers: {
+          "x-user-id": user.id,
+        },
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const nextDocs = docs.filter((item) => item.id !== docId);
+      setDocs(nextDocs);
+
+      if (activeDocId === docId) {
+        if (nextDocs[0]) {
+          router.push(`/app/docs/${nextDocs[0].id}`);
+        } else {
+          router.push("/app/docs/new");
+        }
+      }
+
+      return true;
+    } finally {
+      setDeletingDocId(null);
+    }
+  }, [activeDocId, docs, isDeletingDocId, router, user.id]);
+
   const logout = useCallback(async () => {
     localStorage.removeItem("zenthesis-temp-user");
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
@@ -492,6 +530,7 @@ export function WorkspaceUIProvider({ children }: { children: ReactNode }) {
     conversations,
     activeConversationId,
     isDeletingConversationId,
+    isDeletingDocId,
     conversationMessages,
     conversationAttachments,
     selectedAttachmentIds,
@@ -545,6 +584,7 @@ export function WorkspaceUIProvider({ children }: { children: ReactNode }) {
     closeWordImportModal: () => setWordImportModalOpen(false),
     createDocument,
     updateDocument,
+    deleteDocument,
     refreshDocs,
     logout,
   }), [
@@ -564,6 +604,7 @@ export function WorkspaceUIProvider({ children }: { children: ReactNode }) {
     conversations,
     activeConversationId,
     isDeletingConversationId,
+    isDeletingDocId,
     conversationMessages,
     conversationAttachments,
     selectedAttachmentIds,
@@ -577,6 +618,7 @@ export function WorkspaceUIProvider({ children }: { children: ReactNode }) {
     uploadConversationFiles,
     createDocument,
     updateDocument,
+    deleteDocument,
     refreshDocs,
     logout,
   ]);

@@ -14,11 +14,13 @@ import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { Code2, ImagePlus, List, ListOrdered, LoaderCircle, Quote, Sigma, Table2, Type, Heading1, Heading2, Heading3 } from "lucide-react";
 import { createLowlight, all } from "lowlight";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useI18n } from "@/components/i18n-provider";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { AutoCompleteSettings } from "@/lib/types";
 
 interface RichDocumentEditorProps {
@@ -26,6 +28,9 @@ interface RichDocumentEditorProps {
   title: string;
   initialJson?: Record<string, unknown> | null;
   initialText?: string;
+  editable?: boolean;
+  collabUserId?: string;
+  collabUserName?: string;
   onChange: (payload: { content: string; contentJson: Record<string, unknown> }) => void;
   autoCompleteEnabled: boolean;
   autoCompleteSettings: AutoCompleteSettings;
@@ -38,6 +43,15 @@ interface RichDocumentEditorProps {
 }
 
 const lowlight = createLowlight(all);
+
+interface RealtimeContentPayload {
+  docId: string;
+  userId: string;
+  userName: string;
+  contentJson: Record<string, unknown>;
+  text: string;
+  sentAt: number;
+}
 
 function toInitialContent(initialJson?: Record<string, unknown> | null, initialText?: string) {
   if (initialJson && typeof initialJson === "object") {
@@ -72,6 +86,9 @@ export function RichDocumentEditor({
   title,
   initialJson,
   initialText,
+  editable = true,
+  collabUserId,
+  collabUserName,
   onChange,
   autoCompleteEnabled,
   autoCompleteSettings,
@@ -88,6 +105,9 @@ export function RichDocumentEditor({
   const suggestionSeqRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const skipNextRef = useRef(false);
+  const realtimeChannelRef = useRef<RealtimeChannel | null>(null);
+  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const applyingRemoteRef = useRef(false);
   const settingsSignature = useMemo(
     () => JSON.stringify(autoCompleteSettings),
     [autoCompleteSettings],
@@ -97,6 +117,7 @@ export function RichDocumentEditor({
 
   const editor = useEditor({
     immediatelyRender: false,
+    editable,
     extensions: [
       StarterKit,
       Placeholder.configure({
@@ -118,11 +139,39 @@ export function RichDocumentEditor({
     ],
     content,
     onUpdate({ editor: current }) {
+      if (applyingRemoteRef.current) {
+        return;
+      }
       setCurrentText(current.getText());
       onChange({
         content: current.getText(),
         contentJson: current.getJSON() as Record<string, unknown>,
       });
+
+      if (!collabUserId || !realtimeChannelRef.current) {
+        return;
+      }
+
+      if (realtimeTimerRef.current) {
+        clearTimeout(realtimeTimerRef.current);
+      }
+
+      const payload: RealtimeContentPayload = {
+        docId,
+        userId: collabUserId,
+        userName: collabUserName || "Collaborator",
+        contentJson: current.getJSON(),
+        text: current.getText(),
+        sentAt: Date.now(),
+      };
+
+      realtimeTimerRef.current = setTimeout(() => {
+        void realtimeChannelRef.current?.send({
+          type: "broadcast",
+          event: "content-update",
+          payload,
+        });
+      }, 240);
     },
   });
 
@@ -212,6 +261,68 @@ export function RichDocumentEditor({
     setAutoLoading(false);
     setAutoError(null);
   }, [docId, title, initialText]);
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+    editor.setEditable(editable);
+  }, [editable, editor]);
+
+  useEffect(() => {
+    if (!editor || !collabUserId) {
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      return;
+    }
+
+    const channel = supabase.channel(`doc:${docId}`, {
+      config: {
+        broadcast: { self: false },
+        presence: { key: collabUserId },
+      },
+    });
+
+    channel.on("broadcast", { event: "content-update" }, ({ payload }: { payload: RealtimeContentPayload }) => {
+      if (!payload || payload.userId === collabUserId || !payload.contentJson) {
+        return;
+      }
+
+      applyingRemoteRef.current = true;
+      editor.commands.setContent(payload.contentJson, { emitUpdate: false });
+      const nextText = typeof payload.text === "string" ? payload.text : editor.getText();
+      setCurrentText(nextText);
+      onChange({
+        content: nextText,
+        contentJson: payload.contentJson as Record<string, unknown>,
+      });
+      requestAnimationFrame(() => {
+        applyingRemoteRef.current = false;
+      });
+    });
+
+    channel.subscribe((status: string) => {
+      if (status === "SUBSCRIBED") {
+        void channel.track({
+          userId: collabUserId,
+          userName: collabUserName || "Collaborator",
+          activeAt: Date.now(),
+        });
+      }
+    });
+    realtimeChannelRef.current = channel;
+
+    return () => {
+      if (realtimeTimerRef.current) {
+        clearTimeout(realtimeTimerRef.current);
+      }
+      realtimeChannelRef.current = null;
+      void supabase.removeChannel(channel);
+    };
+  }, [collabUserId, collabUserName, docId, editor, onChange]);
 
   if (!editor) {
     return (

@@ -9,6 +9,7 @@ import { useI18n } from "@/components/i18n-provider";
 export default function RegisterPage() {
   const router = useRouter();
   const { t } = useI18n();
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,7 +29,7 @@ export default function RegisterPage() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ username, email, password }),
     }).catch(() => null);
 
     if (!response || !response.ok) {
@@ -63,6 +64,17 @@ export default function RegisterPage() {
           <div className="my-6 h-px bg-[color:var(--border)]" />
 
           <form className="space-y-4" onSubmit={handleSubmit}>
+            <div>
+              <label className="text-sm font-medium">{t("auth.username")}</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                placeholder={t("auth.usernamePlaceholder")}
+                className="mt-2 w-full rounded-xl border border-[color:var(--border)] bg-transparent px-4 py-3 text-sm outline-none focus:border-[color:var(--accent)]"
+              />
+              <p className="mt-1 text-xs text-[color:var(--muted-foreground)]">{t("auth.usernameHint")}</p>
+            </div>
             <div>
               <label className="text-sm font-medium">{t("auth.email")}</label>
               <input

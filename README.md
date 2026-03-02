@@ -7,7 +7,11 @@ Academic writing assistant workspace built with Next.js App Router + TypeScript.
 - Public pages: `/`, `/case-studies`, `/contact`
 - Auth pages: `/auth/login`, `/auth/register`
 - Workspace pages: `/app/docs`, `/app/docs/[docId]`, `/app/library`, `/app/chat`, `/app/settings`
+- Shared route: `/app/shared/[token]` (login required before resolving share token)
 - Theme system: light/dark/system with persisted preference
+- Username-first identity (6-10 chars, letters/numbers/underscore, at least one letter)
+- Document export: DOCX / PDF
+- Share link collaboration: generate/revoke link + collaborator access record
 - APIs:
   - `/api/ai/*` (chat + autocomplete + rewrite/continue/summarize/outline)
   - `/api/docs*`
@@ -43,7 +47,17 @@ Open [http://localhost:3000](http://localhost:3000).
    - `DEEPSEEK_MODEL`
    - `DEEPSEEK_BASE_URL`
    - `AI_TIMEOUT_MS`
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY` (server-only, optional but recommended)
 3. If any key was exposed, rotate it before use.
+
+## Collaboration Notes
+
+- Share links are resolved via `/api/shared/[token]`; users must be authenticated.
+- Link visits create/update `DocumentCollaborator` access rows.
+- Realtime document sync uses Supabase Realtime channel `doc:{docId}`.
+- If Supabase public env vars are missing, editor falls back to autosave-only mode (no realtime merge).
 
 ## Quality Gates
 
