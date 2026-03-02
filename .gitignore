@@ -21,6 +21,7 @@
 # production
 /build
 /dev.db
+/prisma/*.db
 /tmp_next_init_20260227
 
 # misc

@@ -522,3 +522,22 @@
 - Existing local DB data may contain historical demo rows; behavior now depends on file-based source-type filtering, so functionality remains correct.
 - Next milestone entry:
 - V3.2 closed; next thread can focus on UX polish only if needed.
+### Milestone 2: Git initialization and baseline commit
+- Completed:
+- Initialized local git repository and created first baseline commit for project source tree.
+- Confirmed media files and `.env.local` were excluded from tracking by ignore rules.
+- Residual risks:
+- Initial baseline commit included `prisma/dev.db`; cleanup is completed in current working tree and will be committed in next milestone.
+- Next milestone entry:
+- Milestone 3: collaboration guardrails and CI.
+
+### Milestone 3: Collaboration guardrails and CI baseline
+- Completed:
+- Added GitHub Actions workflow to enforce `lint/test/build` on push/PR to `main`.
+- Added pull request template with quality and security checklist.
+- Added CODEOWNERS bootstrap file for review ownership.
+- Refreshed README with repository rules, contribution flow, and Vercel deployment checklist.
+- Residual risks:
+- CODEOWNERS handle must be updated to actual GitHub account/team after remote repo creation.
+- Next milestone entry:
+- Milestone 4: remote setup and push verification.

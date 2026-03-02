@@ -1,52 +1,31 @@
 # Zenthesis.ai
 
-Zenthesis.ai MVP foundation built with Next.js App Router + TypeScript.
+Academic writing assistant workspace built with Next.js App Router + TypeScript.
 
-## Implemented scope
+## Core Scope
 
-- Public pages:
-  - `/` (masonry-style landing)
-  - `/case-studies`
-  - `/contact`
-- Auth pages:
-  - `/auth/login`
-  - `/auth/register`
-- Workspace pages (chat-first, parallel modules):
-  - `/app/chat`
-  - `/app/docs`
-  - `/app/docs/[docId]`
-  - `/app/library`
-  - `/app/library/import`
-  - `/app/settings`
-- Theme system:
-  - Light / dark / system toggle
-  - Default follows system
-  - Local persistence key: `zenthesis-theme`
-  - Settings API persistence scaffold
-- API scaffolding:
+- Public pages: `/`, `/case-studies`, `/contact`
+- Auth pages: `/auth/login`, `/auth/register`
+- Workspace pages: `/app/docs`, `/app/docs/[docId]`, `/app/library`, `/app/chat`, `/app/settings`
+- Theme system: light/dark/system with persisted preference
+- APIs:
+  - `/api/ai/*` (chat + autocomplete + rewrite/continue/summarize/outline)
+  - `/api/docs*`
+  - `/api/library/*`
   - `/api/settings/preferences`
-  - `/api/auth/phone/send-otp`
-  - `/api/auth/phone/verify-otp`
-  - `/api/ai/{chat,rewrite,continue,summarize,outline}`
-  - `/api/docs`, `/api/docs/[id]`, `/api/docs/[id]/export`
-  - `/api/library/items`
-  - `/api/library/import/{pdf,bib-ris,zotero,mendeley,web}`
-  - `/api/library/citations/format`
-  - `/api/usage/quota`, `/api/usage/consume`
-- Supabase schema scaffold:
-  - `supabase/schema.sql` (includes `user_preferences` + RLS policies)
+  - `/api/usage/*`
+  - `/api/auth/*`
 
-## Collaboration tracking files
+## Repository Rules
 
-Fallback mechanism is active in repo root:
+- This repository is source-code first: do not commit local screenshots, recordings, or large reference files.
+- Secrets are never committed. `.env.local` is local-only and ignored.
+- Collaboration docs are milestone-based and must stay in sync:
+  - `TASK_PLAN.md`
+  - `FINDINGS.md`
+  - `PROGRESS.md`
 
-- `TASK_PLAN.md`
-- `FINDINGS.md`
-- `PROGRESS.md`
-
-Rule: before coding in a new thread, read these three files first.
-
-## Local development
+## Local Development
 
 ```bash
 npm install --cache .npm-cache
@@ -55,7 +34,18 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Validation
+## Environment Setup
+
+1. Copy `.env.example` to `.env.local`.
+2. Fill real values for:
+   - `DATABASE_URL`
+   - `DEEPSEEK_API_KEY`
+   - `DEEPSEEK_MODEL`
+   - `DEEPSEEK_BASE_URL`
+   - `AI_TIMEOUT_MS`
+3. If any key was exposed, rotate it before use.
+
+## Quality Gates
 
 ```bash
 npm run lint
@@ -63,14 +53,19 @@ npm run test
 npm run build
 ```
 
-## Environment setup
+CI runs the same checks for pushes and pull requests.
 
-Copy `.env.example` to `.env.local` and fill in values:
+## GitHub Collaboration Flow
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
+1. Create a feature branch from `main`.
+2. Implement and run local quality gates.
+3. Open a Pull Request using the template.
+4. Wait for CI green + review approval.
+5. Merge PR (do not push directly to protected `main`).
 
-## Notes
+## Deployment (Vercel)
 
-Current provider auth flows (Google/Apple/Phone) and library external connectors are UI/API scaffolds for MVP architecture. Production integration with real OAuth, SMS provider, and import pipelines is the next implementation phase.
+1. Import this repository in Vercel.
+2. Configure environment variables in Vercel project settings.
+3. Enable Preview Deployments for PRs.
+4. Use production URL for public viewing and PR preview URLs for review.

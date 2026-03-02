@@ -491,3 +491,19 @@
 - Runtime smoke passed: `POST /api/ai/autocomplete` returned 200 with DeepSeek-generated suggestion using `deepseek-chat`.
 - Residual risk: None blocking for V3.2 scope.
 - Next milestone: Closed.
+- Milestone: 2 - Git initialization and baseline commit
+- Goal: Start version control and establish first reproducible repository snapshot.
+- Completed:
+- Ran `git init` and created baseline commit `chore: initial zenthesis baseline`.
+- Verified source tree is tracked while ignored files remain excluded.
+- Residual risk: `prisma/dev.db` appeared in baseline and requires cleanup commit.
+- Next milestone: 3 - Collaboration files and CI.
+
+- Milestone: 3 - Collaboration guardrails and CI
+- Goal: Make external collaboration safe and review-driven.
+- Completed:
+- Added `.github/workflows/ci.yml` for lint/test/build checks.
+- Added PR template and CODEOWNERS bootstrap.
+- Updated README with contribution and deployment process.
+- Residual risk: CODEOWNERS username may need replacement after GitHub repo is created.
+- Next milestone: 4 - Remote push and visibility verification.

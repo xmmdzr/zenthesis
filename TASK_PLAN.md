@@ -6,8 +6,8 @@
 
 ## Milestone Plan (2026-03-02 GitHub Launch + Collaboration)
 - [x] Milestone 1: Repository cleanup and security prep (`.gitignore` media exclusions, local key placeholder)
-- [ ] Milestone 2: Initialize git and create initial commit baseline
-- [ ] Milestone 3: Collaboration guardrails (`README` contribution flow + PR template + CODEOWNERS + CI workflow)
+- [x] Milestone 2: Initialize git and create initial commit baseline
+- [x] Milestone 3: Collaboration guardrails (`README` contribution flow + PR template + CODEOWNERS + CI workflow)
 - [ ] Milestone 4: GitHub remote push and visibility verification
 - [ ] Milestone 5: Optional Vercel linkage checklist and final handoff verification
 
