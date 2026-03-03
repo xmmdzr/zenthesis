@@ -5,9 +5,7 @@ declare global {
 }
 
 if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL is required. Configure a PostgreSQL connection string (e.g. Supabase Postgres) in environment variables.",
-  );
+  process.env.DATABASE_URL = "file:./dev.db";
 }
 
 export const prisma =

@@ -43,7 +43,6 @@ Open [http://localhost:3000](http://localhost:3000).
 1. Copy `.env.example` to `.env.local`.
 2. Fill real values for:
    - `DATABASE_URL`
-   - `DIRECT_URL` (recommended for migrations with Supabase)
    - `DEEPSEEK_API_KEY`
    - `DEEPSEEK_MODEL`
    - `DEEPSEEK_BASE_URL`
@@ -81,7 +80,7 @@ CI runs the same checks for pushes and pull requests.
 ## Deployment (Vercel)
 
 1. Import this repository in Vercel.
-2. Configure environment variables in Vercel project settings (`DATABASE_URL`, `DIRECT_URL`, `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`, `DEEPSEEK_BASE_URL`, `AI_TIMEOUT_MS`).
-3. Use external persistent PostgreSQL for production (recommended: Supabase Postgres). Do not use local SQLite files in Vercel runtime.
+2. Configure environment variables in Vercel project settings (`DATABASE_URL`, `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`, `DEEPSEEK_BASE_URL`, `AI_TIMEOUT_MS`).
+3. Use an external persistent database URL for production (recommended: Postgres). Avoid relying on local SQLite files in Vercel runtime.
 4. Enable Preview Deployments for PRs.
 5. Use production URL for public viewing and PR preview URLs for review.
