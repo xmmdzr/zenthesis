@@ -579,3 +579,10 @@
 - 命令/操作：执行 `npm run lint`、`npm run test`、`npm run build`；执行 `prisma db push` 与 `prisma migrate diff` 更新 `bootstrap.sql`。
 - 测试结果：三项门槛全部通过；Next build 成功输出新增 API/页面路由。
 - 回滚点：`git checkout -- prisma/bootstrap.sql prisma/schema.prisma src/app/auth/login/page.tsx src/lib/i18n/messages/*.ts`。
+
+
+## Milestone Log (2026-03-03 21:18:02 CST) - PostgreSQL 基线切换
+- 动作摘要：完成 `schema.prisma`、`.env.example`、`db.ts` 的 PostgreSQL 化和防呆处理。
+- 命令/操作：执行 `npm run lint`、`DATABASE_URL=... npm run test`、`DATABASE_URL=... npm run build`，全部通过。
+- 测试结果：构建成功，路由收集包含 `/api/ai/autocomplete`，无 SQLite 文件访问错误。
+- 回滚点：`git checkout -- prisma/schema.prisma .env.example src/lib/db.ts README.md TASK_PLAN.md FINDINGS.md PROGRESS.md`。

@@ -620,3 +620,9 @@
 - 已验证：本轮新增功能在 lint/test/build 三个质量门槛下均可通过。
 - 已验证：未配置 Supabase 公钥时实时同步自动降级，不阻塞基础编辑与保存。
 - 风险：历史旧 key 在对话中暴露过，仍需你在外部平台完成轮换并更新部署环境变量。
+
+
+## Milestone Finding (2026-03-03 21:18:02 CST) - PostgreSQL 切换与部署错误根因
+- 已验证：Vercel 上 `Error code 14: Unable to open the database file` 的根因是运行时仍走 SQLite 路径或未提供可用 Postgres 连接。
+- 已验证：将 Prisma datasource 改为 `postgresql` + 去掉 `db.ts` 的 SQLite 回退后，可在构建期提前暴露环境配置问题，避免线上静默降级。
+- 结论：生产环境必须配置外部 Postgres（如 Supabase），并同步 schema 后再进行注册/登录验收。
