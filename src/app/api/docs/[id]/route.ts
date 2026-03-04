@@ -1,6 +1,7 @@
 import { jsonError, jsonOk } from "@/lib/api";
-import { deleteDoc, getDoc, updateDoc } from "@/lib/docs-store";
+import { deleteDocForUser, getDoc, updateDoc } from "@/lib/docs-store";
 import { getRequestUserId } from "@/lib/request-user";
+import type { DocCreationSettings } from "@/lib/types";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -26,6 +27,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         title?: string;
         content?: string;
         contentJson?: Record<string, unknown> | null;
+        creationSettings?: Record<string, unknown> | null;
         status?: "empty" | "active";
       }
     | null;
@@ -34,7 +36,13 @@ export async function PATCH(request: Request, context: RouteContext) {
     return jsonError("payload is required", 400);
   }
 
-  const updated = await updateDoc(userId, id, payload);
+  const updated = await updateDoc(userId, id, {
+    ...payload,
+    creationSettings:
+      payload.creationSettings && typeof payload.creationSettings === "object"
+        ? (payload.creationSettings as unknown as DocCreationSettings)
+        : undefined,
+  });
   if (!updated) {
     return jsonError("document not found", 404);
   }
@@ -46,10 +54,10 @@ export async function DELETE(request: Request, context: RouteContext) {
   const userId = await getRequestUserId(request);
   const { id } = await context.params;
 
-  const deleted = await deleteDoc(userId, id);
-  if (!deleted) {
+  const mode = await deleteDocForUser(userId, id);
+  if (mode === "not_found") {
     return jsonError("document not found", 404);
   }
 
-  return jsonOk({ deleted: true });
+  return jsonOk({ deleted: true, mode });
 }

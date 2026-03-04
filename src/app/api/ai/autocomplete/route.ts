@@ -156,6 +156,12 @@ export async function POST(request: Request) {
   if (payload.cursorContext !== undefined && typeof payload.cursorContext !== "string") {
     return jsonError("cursorContext must be a string", 400);
   }
+  if (payload.sectionTitle !== undefined && typeof payload.sectionTitle !== "string") {
+    return jsonError("sectionTitle must be a string", 400);
+  }
+  if (payload.docSettings !== undefined && typeof payload.docSettings !== "object") {
+    return jsonError("docSettings must be an object", 400);
+  }
   if (payload.retryFrom !== undefined && typeof payload.retryFrom !== "string") {
     return jsonError("retryFrom must be a string", 400);
   }
@@ -202,6 +208,10 @@ export async function POST(request: Request) {
     console.warn("[api/ai/autocomplete] fallback response", {
       reason: result._meta.providerReason,
       status: result._meta.status ?? null,
+      attempts: result._meta.attempts ?? null,
+      keySlotUsed: result._meta.keySlotUsed ?? null,
+      lastReason: result._meta.lastReason ?? null,
+      lastStatus: result._meta.lastStatus ?? null,
       model: result._meta.model,
       baseUrl: result._meta.baseUrl,
       upstreamMessage: result._meta.upstreamMessage ?? null,
@@ -209,10 +219,12 @@ export async function POST(request: Request) {
       effectiveUseLibrary: effectiveSettings.useLibrary,
       userId,
     });
+
+    return jsonError(result.error || "autocomplete failed", 502);
   }
 
   return jsonOk({
-    suggestion: result.suggestion,
+    suggestion: result.suggestion || "",
     generatedAt: new Date().toISOString(),
   });
 }

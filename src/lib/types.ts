@@ -1,7 +1,31 @@
 export type ThemePreference = "light" | "dark" | "system";
 export type Locale = "zh" | "en" | "ru" | "fr";
 
-export type CitationStyle = "APA" | "MLA" | "Chicago";
+export type CitationStyle =
+  | "APA"
+  | "MLA"
+  | "Chicago"
+  | "APA7"
+  | "MLA9"
+  | "Chicago17"
+  | "GBT7714";
+
+export interface TitleQualityResult {
+  score: number;
+  level: "weak" | "medium" | "strong";
+  tips: string[];
+}
+
+export interface DocCreationSettings {
+  useWeb: boolean;
+  useLibrary: boolean;
+  yearPreset: "all" | "5y" | "custom";
+  yearMin?: number;
+  yearMax?: number;
+  impactPreset: "all" | "gt025" | "gt3" | "gt10";
+  citationStyle: CitationStyle;
+  showCitationPage: boolean;
+}
 
 export type SourceType =
   | "pdf"
@@ -24,6 +48,7 @@ export interface DocumentItem {
   title: string;
   content: string;
   contentJson?: Record<string, unknown> | null;
+  creationSettings?: DocCreationSettings | null;
   status: "empty" | "active";
   draftType?: "standard" | "smart" | "blank";
   isSample?: boolean;
@@ -75,6 +100,8 @@ export interface AutoCompleteRequestPayload {
   docId: string;
   title: string;
   content: string;
+  sectionTitle?: string;
+  docSettings?: DocCreationSettings;
   cursorContext?: string;
   settings: AutoCompleteSettings;
   retryFrom?: string;

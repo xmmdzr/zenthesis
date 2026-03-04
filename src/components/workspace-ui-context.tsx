@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import type {
+  DocCreationSettings,
   ConversationAttachment,
   ConversationMessage,
   ConversationSummary,
@@ -23,6 +24,7 @@ import type {
 export type SourceTab = "pdf" | "zotero" | "mendeley" | "bib_ris" | "id";
 export type DraftType = "standard" | "smart" | "blank";
 export type LeftPanelMode = "docs" | "library" | null;
+export type DeleteDocMode = "hard_deleted" | "removed_from_list";
 
 interface UsageLine {
   labelKey: string;
@@ -34,6 +36,8 @@ interface CreateDocumentPayload {
   title: string;
   draftType: DraftType;
   seedPrompt?: string;
+  creationSettings?: DocCreationSettings;
+  bootstrap?: boolean;
 }
 
 interface WorkspaceUIContextValue {
@@ -88,13 +92,13 @@ interface WorkspaceUIContextValue {
   closeSourceModal: () => void;
   openWordImportModal: () => void;
   closeWordImportModal: () => void;
-  createDocument: (payload: CreateDocumentPayload) => Promise<DocumentItem | null>;
+  createDocument: (payload: CreateDocumentPayload) => Promise<DocumentItem>;
   updateDocument: (
     docId: string,
     payload: Partial<Pick<DocumentItem, "title" | "content" | "contentJson" | "status">>,
   ) => Promise<DocumentItem | null>;
-  deleteDocument: (docId: string) => Promise<boolean>;
-  refreshDocs: () => Promise<void>;
+  deleteDocument: (docId: string) => Promise<{ ok: boolean; mode?: DeleteDocMode; error?: string }>;
+  refreshDocs: () => Promise<DocumentItem[]>;
   logout: () => Promise<void>;
 }
 
@@ -165,12 +169,13 @@ export function WorkspaceUIProvider({ children }: { children: ReactNode }) {
     });
 
     if (!response.ok) {
-      return;
+      return [];
     }
 
     const result = (await response.json()) as { docs: DocumentItem[] };
     setDocs(result.docs);
     setDocsLoaded(true);
+    return result.docs;
   }, [user.id]);
 
   const refreshLibrary = useCallback(async () => {
@@ -440,7 +445,8 @@ export function WorkspaceUIProvider({ children }: { children: ReactNode }) {
     });
 
     if (!response.ok) {
-      return null;
+      const failed = (await response.json().catch(() => null)) as { error?: string; message?: string } | null;
+      throw new Error(failed?.error || failed?.message || "create document failed");
     }
 
     const result = (await response.json()) as { doc: DocumentItem };
@@ -474,7 +480,7 @@ export function WorkspaceUIProvider({ children }: { children: ReactNode }) {
 
   const deleteDocument = useCallback(async (docId: string) => {
     if (!docId || isDeletingDocId) {
-      return false;
+      return { ok: false, error: "invalid document id" };
     }
 
     setDeletingDocId(docId);
@@ -487,25 +493,34 @@ export function WorkspaceUIProvider({ children }: { children: ReactNode }) {
       });
 
       if (!response.ok) {
-        return false;
+        const failed = (await response.json().catch(() => null)) as { error?: string; message?: string } | null;
+        return { ok: false, error: failed?.error || failed?.message || "delete document failed" };
+      }
+
+      const result = (await response.json().catch(() => null)) as { mode?: DeleteDocMode } | null;
+      const mode = result?.mode;
+      if (mode !== "hard_deleted" && mode !== "removed_from_list") {
+        return { ok: false, error: "invalid delete mode" };
       }
 
       const nextDocs = docs.filter((item) => item.id !== docId);
       setDocs(nextDocs);
+      const refreshedDocs = await refreshDocs();
+      const routeDocs = refreshedDocs.length > 0 ? refreshedDocs : nextDocs;
 
       if (activeDocId === docId) {
-        if (nextDocs[0]) {
-          router.push(`/app/docs/${nextDocs[0].id}`);
+        if (routeDocs[0]) {
+          router.push(`/app/docs/${routeDocs[0].id}`);
         } else {
           router.push("/app/docs/new");
         }
       }
 
-      return true;
+      return { ok: true, mode };
     } finally {
       setDeletingDocId(null);
     }
-  }, [activeDocId, docs, isDeletingDocId, router, user.id]);
+  }, [activeDocId, docs, isDeletingDocId, refreshDocs, router, user.id]);
 
   const logout = useCallback(async () => {
     localStorage.removeItem("zenthesis-temp-user");

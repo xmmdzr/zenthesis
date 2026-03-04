@@ -579,3 +579,66 @@
 - 命令/操作：执行 `npm run lint`、`npm run test`、`npm run build`；执行 `prisma db push` 与 `prisma migrate diff` 更新 `bootstrap.sql`。
 - 测试结果：三项门槛全部通过；Next build 成功输出新增 API/页面路由。
 - 回滚点：`git checkout -- prisma/bootstrap.sql prisma/schema.prisma src/app/auth/login/page.tsx src/lib/i18n/messages/*.ts`。
+
+## Milestone Log (2026-03-03 22:46:00 CST) - V5 M1
+- 动作摘要：新增 AI 健康检查路由、重构自动完成失败语义、增强提示词相关性约束。
+- 命令/操作：改造 `ai.ts`、`deepseek-provider.ts`、`/api/ai/autocomplete`、`document-editor-pane`、`rich-document-editor`。
+- 测试结果：`lint/test/build` 回归通过。
+- 回滚点：`git checkout -- src/lib/ai.ts src/lib/ai/deepseek-provider.ts src/app/api/ai/autocomplete/route.ts src/app/api/ai/health/route.ts src/components/document-editor-pane.tsx src/components/rich-document-editor.tsx`。
+
+## Milestone Log (2026-03-03 22:46:00 CST) - V5 M2
+- 动作摘要：重写新建文档弹窗为双步骤流程，并加入题目质量实时进度条。
+- 命令/操作：改造 `new-document-modal.tsx` 与 `workspace-ui-context.tsx` 创建参数。
+- 测试结果：构建通过，blank/standard/smart 三模式均可触发创建。
+- 回滚点：`git checkout -- src/components/new-document-modal.tsx src/components/workspace-ui-context.tsx src/lib/title-quality.ts`。
+
+## Milestone Log (2026-03-03 22:46:00 CST) - V5 M3
+- 动作摘要：标准模式创建时注入基础论文大纲。
+- 命令/操作：新增 `doc-bootstrap.ts`，扩展 `docs-store.ts` 与 `POST /api/docs`。
+- 测试结果：新建标准文档后可直接进入带大纲的编辑页。
+- 回滚点：`git checkout -- src/lib/doc-bootstrap.ts src/lib/docs-store.ts src/app/api/docs/route.ts`。
+
+## Milestone Log (2026-03-03 22:46:00 CST) - V5 M4
+- 动作摘要：智能模式接入 DeepSeek 结构化细纲生成（标题 + H1/H2/H3）。
+- 命令/操作：`ai.ts` 增加智能生成链路，解析 JSON 输出并转 Tiptap 内容。
+- 测试结果：模型成功返回时可生成分层大纲；失败会明确报错。
+- 回滚点：`git checkout -- src/lib/ai.ts src/lib/doc-bootstrap.ts src/app/api/docs/route.ts`。
+
+## Milestone Log (2026-03-03 22:46:00 CST) - V5 M5
+- 动作摘要：文档级创建设置持久化与全量回归。
+- 命令/操作：更新 `schema.prisma`、`bootstrap.sql`、`types.ts`、`docs-store.ts`、i18n 文案。
+- 测试结果：`npm run lint`、`npm run test`、`npm run build` 全通过。
+- 回滚点：`git checkout -- prisma/schema.prisma prisma/bootstrap.sql src/lib/types.ts src/lib/docs-store.ts src/lib/i18n/messages/*.ts`。
+
+## 2026-03-03 V5.1 Progress
+
+### Completed actions
+- Implemented DeepSeek multi-key failover and timeout alias compatibility in provider.
+- Extended AI metadata for attempts/key slot visibility and wired it into health/autocomplete/chat logging.
+- Updated editor footer to show backup-key takeover notice when active key slot is not primary.
+- Added env template entries for backup/key pool/timeout alias.
+- Refactored document deletion backend to support owner hard delete and collaborator remove-from-list.
+- Updated docs DELETE API response to return delete mode.
+- Updated document sidebar delete modal and action text based on document ownership.
+
+### Validation
+- `npm run lint` passed.
+- `npm run test` passed.
+- `npm run build` passed.
+- Smoke: invalid primary key + valid backup key => `/api/ai/health` reachable with `activeKeySlot: backup`.
+- Smoke: collaborator delete => `{ mode: "removed_from_list" }`, owner still retains document.
+
+## 2026-03-04 V5.2 Progress
+
+### Done
+- Implemented docs-store deletion fallback to in-memory docs when DB lookup misses.
+- Updated document deletion flow in UI context to await refresh and keep route fallback stable.
+- Implemented new time rendering logic in docs panel: minutes/hours/date.
+- Added new i18n labels for time buckets in zh/en/ru/fr.
+- Verified with lint/test/build and DELETE API smoke (`404` invalid ID + successful hard delete).
+
+### Test summary
+- `npm run lint` passed.
+- `npm run test` passed.
+- `npm run build` passed.
+- API smoke passed for delete error/success paths.

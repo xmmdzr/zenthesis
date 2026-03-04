@@ -620,3 +620,37 @@
 - 已验证：本轮新增功能在 lint/test/build 三个质量门槛下均可通过。
 - 已验证：未配置 Supabase 公钥时实时同步自动降级，不阻塞基础编辑与保存。
 - 风险：历史旧 key 在对话中暴露过，仍需你在外部平台完成轮换并更新部署环境变量。
+
+## Milestone Finding (2026-03-03 22:46:00 CST) - V5 M1
+- 自动完成“跑偏”主因之一已确认：`DEEPSEEK_API_KEY` 空值时会走 fallback，旧逻辑仍返回 200，造成“看似成功”。
+- 修复后：provider 非 `ok` 即返回 502，并在前端明确展示原因，不再隐性降级。
+
+## Milestone Finding (2026-03-03 22:46:00 CST) - V5 M2
+- 双步骤建文档与评分条可在前端完全本地实现，不需要新增评分 API。
+- 评分条最稳定方案是启发式规则（长度、关系词、范围词、方法词、泛化词惩罚）。
+
+## Milestone Finding (2026-03-03 22:46:00 CST) - V5 M3
+- 标准模式采用固定模板可显著减少“新文档空白无从下手”的问题。
+- 通过创建时直接写入 `contentJson`，避免“先空文档再异步注入”导致的闪烁。
+
+## Milestone Finding (2026-03-03 22:46:00 CST) - V5 M4
+- 智能模式若要求分层细纲，必须约束模型输出 JSON；自由文本不利于稳定渲染到编辑器。
+- 单输入框场景下，`标题/上下文` 判定可通过长度、换行、请求式短语完成首版稳定识别。
+
+## Milestone Finding (2026-03-03 22:46:00 CST) - V5 M5
+- 文档级创建设置持久化后，自动完成可以继承来源/引用约束，减少跨页面状态漂移。
+- SQLite 旧库兼容需要运行时 `ALTER TABLE` 防呆，否则会触发查询异常回退。
+
+## V5.1 Findings (2026-03-03)
+
+- Root cause of "未配置 DEEPSEEK_API_KEY": `.env.local` had an effectively empty key value (`""`).
+- Both provided DeepSeek keys were externally validated against `deepseek-chat` and returned HTTP 200.
+- Timeout mismatch existed in user input (`AI_TIMES_OUT`) vs code (`AI_TIMEOUT_MS`); provider now supports both.
+- Delete API itself worked for owner path; missing behavior was collaborator "remove from list" path and clear UI semantics.
+- Added role-aware delete result modes to avoid destructive deletes by collaborators.
+
+## V5.2 Findings (2026-03-04)
+
+- Document deletion backend worked in normal DB path, but fallback/mixed in-memory state could still cause `not_found`; added memory-store check before returning `not_found`.
+- Frontend originally displayed `date + minutes ago` statically; this conflicted with desired hour/date granularity.
+- New display rule now uses elapsed thresholds and locale date-only output for items older than 24 hours.

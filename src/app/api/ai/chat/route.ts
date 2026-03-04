@@ -119,6 +119,10 @@ export async function POST(request: Request) {
     console.warn("[api/ai/chat] fallback response", {
       reason: result._meta.providerReason,
       status: result._meta.status ?? null,
+      attempts: result._meta.attempts ?? null,
+      keySlotUsed: result._meta.keySlotUsed ?? null,
+      lastReason: result._meta.lastReason ?? null,
+      lastStatus: result._meta.lastStatus ?? null,
       model: result._meta.model,
       baseUrl: result._meta.baseUrl,
       upstreamMessage: result._meta.upstreamMessage ?? null,
