@@ -15,6 +15,7 @@ export function WordImportModal({ currentDocId }: WordImportModalProps) {
   const { isWordImportModalOpen, closeWordImportModal, createDocument, updateDocument } = useWorkspaceUI();
   const [fileName, setFileName] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleApply() {
     if (!fileName || loading) {
@@ -22,30 +23,36 @@ export function WordImportModal({ currentDocId }: WordImportModalProps) {
     }
 
     setLoading(true);
+    setError(null);
 
-    if (currentDocId) {
-      await updateDocument(currentDocId, {
-        content: `Imported from Word: ${fileName}\n\n(Editable content placeholder)`,
-        status: "active",
-      });
-    } else {
-      const created = await createDocument({
-        title: fileName.replace(/\.docx$/i, "") || t("doc.untitled"),
-        draftType: "standard",
-        seedPrompt: "",
-      });
+    try {
+      if (currentDocId) {
+        await updateDocument(currentDocId, {
+          content: `Imported from Word: ${fileName}\n\n(Editable content placeholder)`,
+          status: "active",
+        });
+      } else {
+        const created = await createDocument({
+          title: fileName.replace(/\.docx$/i, "") || t("doc.untitled"),
+          draftType: "standard",
+          seedPrompt: "",
+        });
 
-      if (created) {
         await updateDocument(created.id, {
           content: `Imported from Word: ${fileName}\n\n(Editable content placeholder)`,
           status: "active",
         });
       }
+
+      setLoading(false);
+      setFileName("");
+      closeWordImportModal();
+      return;
+    } catch (importError) {
+      setError(importError instanceof Error ? importError.message : t("word.import"));
     }
 
     setLoading(false);
-    setFileName("");
-    closeWordImportModal();
   }
 
   if (!isWordImportModalOpen) {
@@ -84,6 +91,7 @@ export function WordImportModal({ currentDocId }: WordImportModalProps) {
             />
           </div>
           {fileName && <p className="mt-2 text-sm">{t("word.selected", { file: fileName })}</p>}
+          {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
         </div>
 
         <div className="mt-4 flex justify-end">

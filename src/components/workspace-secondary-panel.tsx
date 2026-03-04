@@ -10,9 +10,26 @@ interface WorkspaceSecondaryPanelProps {
   mode: "docs" | "library";
 }
 
-function formatMeta(ts: string) {
-  const diff = Date.now() - new Date(ts).getTime();
-  return Math.max(1, Math.floor(diff / 60000));
+function formatOpenedMeta(ts: string, t: (key: string, params?: Record<string, string | number>) => string) {
+  const target = new Date(ts);
+  const diffMs = Date.now() - target.getTime();
+  const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 60) {
+    return t("workspace.openedMinutesAgo", { minutes: diffMinutes });
+  }
+
+  const diffHours = Math.max(1, Math.floor(diffMinutes / 60));
+  if (diffHours < 24) {
+    return t("workspace.openedHoursAgo", { hours: diffHours });
+  }
+
+  const dateText = new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(target);
+  return t("workspace.openedOnDate", { date: dateText });
 }
 
 export function WorkspaceSecondaryPanel({ mode }: WorkspaceSecondaryPanelProps) {
@@ -151,22 +168,20 @@ export function WorkspaceSecondaryPanel({ mode }: WorkspaceSecondaryPanelProps) 
                     )}
                   </div>
                   <p className="mt-1 text-sm text-[color:var(--muted-foreground)]">
-                    {new Date(item.updatedAt).toLocaleDateString()} · {t("workspace.openedAgo", { minutes: formatMeta(item.updatedAt) })}
+                    {formatOpenedMeta(item.updatedAt, t)}
                   </p>
                 </button>
-                {item.isOwner !== false && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPendingDocId(item.id);
-                      setDeleteError(null);
-                    }}
-                    className="rounded-md p-1 text-[color:var(--muted-foreground)] hover:bg-[color:var(--background)]"
-                    aria-label={t("doc.delete")}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingDocId(item.id);
+                    setDeleteError(null);
+                  }}
+                  className="rounded-md p-1 text-[color:var(--muted-foreground)] hover:bg-[color:var(--background)]"
+                  aria-label={t("doc.delete")}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
               </div>
             </article>
           ))}
@@ -177,7 +192,9 @@ export function WorkspaceSecondaryPanel({ mode }: WorkspaceSecondaryPanelProps) 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-[360px] rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-4 shadow-xl">
             <h4 className="text-base font-semibold">{t("doc.delete")}</h4>
-            <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">{t("doc.deleteConfirm")}</p>
+            <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
+              {pendingDoc.isOwner === false ? t("doc.removeFromListConfirm") : t("doc.deleteConfirm")}
+            </p>
             <p className="mt-1 line-clamp-1 text-xs text-[color:var(--muted-foreground)]">{pendingDoc.title}</p>
             {deleteError && <p className="mt-2 text-xs text-red-500">{deleteError}</p>}
             <div className="mt-4 flex items-center justify-end gap-2">
@@ -195,9 +212,9 @@ export function WorkspaceSecondaryPanel({ mode }: WorkspaceSecondaryPanelProps) 
                 type="button"
                 onClick={() => {
                   void (async () => {
-                    const ok = await deleteDocument(pendingDoc.id);
-                    if (!ok) {
-                      setDeleteError(t("doc.deleteFailed"));
+                    const result = await deleteDocument(pendingDoc.id);
+                    if (!result.ok) {
+                      setDeleteError(result.error || t("doc.deleteFailed"));
                       return;
                     }
                     setPendingDocId(null);
@@ -210,10 +227,10 @@ export function WorkspaceSecondaryPanel({ mode }: WorkspaceSecondaryPanelProps) 
                 {isDeletingDocId === pendingDoc.id ? (
                   <>
                     <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                    {t("doc.deleting")}
+                    {pendingDoc.isOwner === false ? t("doc.removingFromList") : t("doc.deleting")}
                   </>
                 ) : (
-                  t("doc.delete")
+                  pendingDoc.isOwner === false ? t("doc.removeFromList") : t("doc.delete")
                 )}
               </button>
             </div>

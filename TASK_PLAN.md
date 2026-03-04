@@ -165,3 +165,86 @@ Bind temporary session/document flows to real auth and persistent backend storag
   - [x] 登录页补充 `next` 跳转，确保分享链接登录后可回跳
 - 风险：分享链接为“创建时返回明文一次”，刷新后需重新生成链接才能再次复制
 - 下一入口：提交代码并推送到 GitHub 分支，发起 PR 合并
+
+## Milestone Update (2026-03-03 22:46:00 CST) - V5 M1 完成
+- 目标：DeepSeek 可用性检查 + 自动完成严格失败语义。
+- 完成项：
+  - [x] 新增 `GET /api/ai/health` 健康检查路由。
+  - [x] `POST /api/ai/autocomplete` 改为 provider 失败时返回 `502`，不再伪成功。
+  - [x] 编辑页自动完成开关旁新增 AI 可用性提示。
+  - [x] 自动完成 prompt 增加章节标题、文档摘录、文档级约束；加入一次相关性重试。
+- 风险：若环境变量中的 `DEEPSEEK_API_KEY` 为空，自动完成会被显式拦截。
+- 下一入口：M2 新建文档双步骤流。
+
+## Milestone Update (2026-03-03 22:46:00 CST) - V5 M2 完成
+- 目标：新建文档改造为 Step1 -> Step2。
+- 完成项：
+  - [x] 重写 `new-document-modal`，实现双步骤流程。
+  - [x] Step1 增加题目质量进度条（本地规则实时评分）。
+  - [x] Step2 实现来源、年份、影响因子、引用格式、页码开关。
+  - [x] `blank` 模式保持直达创建。
+- 风险：评分规则是启发式，不等价于学术质量最终判定。
+- 下一入口：M3 标准模式大纲注入。
+
+## Milestone Update (2026-03-03 22:46:00 CST) - V5 M3 完成
+- 目标：标准模式创建后自动注入基础大纲。
+- 完成项：
+  - [x] 新增 `doc-bootstrap`，实现标准模板大纲生成（H1/H2）。
+  - [x] `POST /api/docs` 支持创建时注入 `contentJson/content`。
+  - [x] `docs-store` 支持初始化内容写入。
+- 风险：标准模板为首版结构，后续可按学科细分模板。
+- 下一入口：M4 智能模式细纲生成。
+
+## Milestone Update (2026-03-03 22:46:00 CST) - V5 M4 完成
+- 目标：智能模式调用 DeepSeek 生成标题 + 分层细纲。
+- 完成项：
+  - [x] `ai.ts` 新增智能模式生成逻辑与输入意图判定（标题/上下文）。
+  - [x] 模型输出 JSON 解析后转为 Tiptap 文档结构（H1/H2/H3）。
+  - [x] 智能模式失败时返回明确错误并支持前端降级按钮。
+- 风险：模型返回非结构化 JSON 时会触发错误提示并需重试。
+- 下一入口：M5 文档级设置持久化与回归。
+
+## Milestone Update (2026-03-03 22:46:00 CST) - V5 M5 完成
+- 目标：文档级设置持久化 + 全量回归。
+- 完成项：
+  - [x] `Document` 增加 `creationSettings` 字段（schema + bootstrap）。
+  - [x] `DocumentItem`、`AutoCompleteRequestPayload` 扩展新字段。
+  - [x] `npm run lint` / `npm run test` / `npm run build` 全通过。
+- 风险：本地已有旧 SQLite 库时，首次运行依赖运行时列补齐逻辑。
+- 下一入口：联调 DeepSeek 真 key，并验证自动完成/智能模式内容相关性。
+
+## V5.1 Milestone Update (2026-03-03)
+
+### Goal
+Fix DeepSeek key fallback reliability and make document deletion work for owner and collaborator scenarios.
+
+### Milestones
+- [x] M1 DeepSeek provider failover (`DEEPSEEK_API_KEY` -> backup -> key pool) and timeout alias support.
+- [x] M2 Health/autocomplete observability and user-facing status clarity.
+- [x] M3 Backend delete flow refactor (`hard_deleted` vs `removed_from_list`).
+- [x] M4 Sidebar delete UX update with role-based confirmation text and error passthrough.
+
+### Risks
+- Existing leaked API keys should be rotated after validation.
+- Fallback in-memory store does not fully model collaborator removal semantics.
+
+### Next
+- Verify on Vercel environment variables include backup key and timeout alias expectations.
+
+## V5.2 Milestone Update (2026-03-04)
+
+### Goal
+Fix doc deletion reliability and update document activity time display rules.
+
+### Completed
+- [x] Added delete fallback in docs store to reduce false `document not found` under fallback/mixed state.
+- [x] Stabilized frontend delete flow: await docs refresh and preserve role-based secondary confirmation.
+- [x] Replaced doc list time label with 3-level display: minutes (<1h), hours (<24h), date (>=24h).
+- [x] Added i18n keys for new time labels in zh/en/ru/fr.
+- [x] Ran lint/test/build and API smoke checks.
+
+### Risks
+- In-memory fallback remains a local dev fallback only; production should rely on DB path.
+
+### Next
+- Push branch and open PR for full workspace sync to GitHub.

@@ -3,9 +3,14 @@ import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
-import type { DocumentItem } from "@/lib/types";
+import {
+  defaultDocCreationSettings,
+  normalizeDocCreationSettings,
+} from "@/lib/doc-bootstrap";
+import type { DocCreationSettings, DocumentItem } from "@/lib/types";
 
 const docsStore = new Map<string, DocumentItem[]>();
+let ensuredDocColumns = false;
 
 function toObject(value: unknown): Record<string, unknown> | null {
   if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -32,6 +37,7 @@ function mapDoc(
     title: string;
     content: string;
     contentJson: unknown;
+    creationSettings: unknown;
     status: string;
     draftType: string | null;
     isSample: boolean;
@@ -40,12 +46,16 @@ function mapDoc(
   },
   currentUserId: string,
 ): DocumentItem {
+  const creationObject = toObject(row.creationSettings);
   return {
     id: row.id,
     userId: row.userId,
     title: row.title,
     content: row.content,
     contentJson: toObject(row.contentJson),
+    creationSettings: creationObject
+      ? normalizeDocCreationSettings(creationObject as Partial<DocCreationSettings>)
+      : null,
     status: row.status === "active" ? "active" : "empty",
     draftType: row.draftType as DocumentItem["draftType"],
     isSample: Boolean(row.isSample),
@@ -53,6 +63,20 @@ function mapDoc(
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+
+async function ensureDocumentColumns() {
+  if (ensuredDocColumns) {
+    return;
+  }
+
+  try {
+    await prisma.$executeRawUnsafe('ALTER TABLE "Document" ADD COLUMN "creationSettings" JSON');
+  } catch {
+    // Column may already exist. Ignore.
+  }
+
+  ensuredDocColumns = true;
 }
 
 function seedDocs(userId: string): DocumentItem[] {
@@ -63,6 +87,7 @@ function seedDocs(userId: string): DocumentItem[] {
       title: "气候变化与海洋生态研究",
       content: "",
       contentJson: null,
+      creationSettings: defaultDocCreationSettings(),
       status: "empty",
       draftType: "standard",
       isSample: true,
@@ -77,6 +102,7 @@ function seedDocs(userId: string): DocumentItem[] {
       content:
         "本文提出一个用于评估城市韧性政策执行效果的分析框架，并对比不同治理结构下的实施差异。",
       contentJson: null,
+      creationSettings: defaultDocCreationSettings(),
       status: "active",
       draftType: "smart",
       isSample: true,
@@ -145,6 +171,12 @@ async function seedOwnerDocs(userId: string) {
         title: item.title,
         content: item.content,
         contentJson: toJsonInput(item.contentJson),
+        creationSettings: toJsonInput(
+          normalizeDocCreationSettings(item.creationSettings || undefined) as unknown as Record<
+            string,
+            unknown
+          >,
+        ),
         status: item.status,
         draftType: item.draftType,
         isSample: true,
@@ -157,6 +189,7 @@ async function seedOwnerDocs(userId: string) {
 
 export async function listDocs(userId: string): Promise<DocumentItem[]> {
   try {
+    await ensureDocumentColumns();
     await ensureUser(userId);
     await seedOwnerDocs(userId);
 
@@ -189,6 +222,7 @@ export async function listDocs(userId: string): Promise<DocumentItem[]> {
 
 export async function getDoc(userId: string, docId: string): Promise<DocumentItem | undefined> {
   try {
+    await ensureDocumentColumns();
     const row = await prisma.document.findFirst({
       where: {
         id: docId,
@@ -216,7 +250,15 @@ export async function getDoc(userId: string, docId: string): Promise<DocumentIte
 
 export async function createDoc(
   userId: string,
-  payload: { title: string; draftType?: "standard" | "smart" | "blank"; seedPrompt?: string },
+  payload: {
+    title: string;
+    draftType?: "standard" | "smart" | "blank";
+    seedPrompt?: string;
+    creationSettings?: DocumentItem["creationSettings"];
+    content?: string;
+    contentJson?: Record<string, unknown> | null;
+    status?: DocumentItem["status"];
+  },
 ): Promise<DocumentItem> {
   const normalizedTitle = payload.title.trim();
   const title =
@@ -227,16 +269,25 @@ export async function createDoc(
 
   try {
     await ensureUser(userId);
+    await ensureDocumentColumns();
+    const settings = normalizeDocCreationSettings(payload.creationSettings || undefined);
+    const contentJson =
+      payload.contentJson ??
+      ({
+        type: "doc",
+        content: [{ type: "paragraph" }],
+      } as Record<string, unknown>);
+    const content = typeof payload.content === "string" ? payload.content : "";
+    const status = payload.status || "active";
+
     const row = await prisma.document.create({
       data: {
         userId,
         title,
-        content: "",
-        contentJson: toJsonInput({
-          type: "doc",
-          content: [{ type: "paragraph" }],
-        }),
-        status: "active",
+        content,
+        contentJson: toJsonInput(contentJson),
+        creationSettings: toJsonInput(settings as unknown as Record<string, unknown>),
+        status,
         draftType: payload.draftType ?? "standard",
         isSample: false,
       },
@@ -248,12 +299,15 @@ export async function createDoc(
       id: `doc-${Date.now()}`,
       userId,
       title,
-      content: "",
-      contentJson: {
-        type: "doc",
-        content: [{ type: "paragraph" }],
-      },
-      status: "active",
+      content: typeof payload.content === "string" ? payload.content : "",
+      contentJson:
+        payload.contentJson ??
+        ({
+          type: "doc",
+          content: [{ type: "paragraph" }],
+        } as Record<string, unknown>),
+      creationSettings: normalizeDocCreationSettings(payload.creationSettings || undefined),
+      status: payload.status || "active",
       draftType: payload.draftType ?? "standard",
       isSample: false,
       isOwner: true,
@@ -269,7 +323,9 @@ export async function createDoc(
 export async function updateDoc(
   userId: string,
   docId: string,
-  updates: Partial<Pick<DocumentItem, "title" | "content" | "contentJson" | "status">>,
+  updates: Partial<
+    Pick<DocumentItem, "title" | "content" | "contentJson" | "status" | "creationSettings">
+  >,
 ): Promise<DocumentItem | undefined> {
   const nextStatus =
     typeof updates.status === "string"
@@ -279,6 +335,7 @@ export async function updateDoc(
         : undefined;
 
   try {
+    await ensureDocumentColumns();
     const accessible = await prisma.document.findFirst({
       where: {
         id: docId,
@@ -310,6 +367,16 @@ export async function updateDoc(
           : updates.contentJson
             ? { contentJson: toJsonInput(updates.contentJson) }
             : {}),
+        ...(updates.creationSettings
+          ? {
+              creationSettings: toJsonInput(
+                normalizeDocCreationSettings(updates.creationSettings || undefined) as unknown as Record<
+                  string,
+                  unknown
+                >,
+              ),
+            }
+          : {}),
         ...(nextStatus ? { status: nextStatus } : {}),
       },
     });
@@ -335,6 +402,10 @@ export async function updateDoc(
       target.contentJson = updates.contentJson;
     }
 
+    if (updates.creationSettings) {
+      target.creationSettings = normalizeDocCreationSettings(updates.creationSettings || undefined);
+    }
+
     if (nextStatus) {
       target.status = nextStatus;
     }
@@ -344,20 +415,66 @@ export async function updateDoc(
   }
 }
 
-export async function deleteDoc(userId: string, docId: string) {
-  try {
-    const result = await prisma.document.deleteMany({
-      where: {
-        id: docId,
-        userId,
-      },
-    });
+export type DeleteDocForUserResult = "hard_deleted" | "removed_from_list" | "not_found";
 
-    return result.count > 0;
-  } catch {
+export async function deleteDocForUser(userId: string, docId: string): Promise<DeleteDocForUserResult> {
+  const deleteFromMemoryStore = () => {
     const current = docsStore.get(userId) ?? [];
     const next = current.filter((item) => item.id !== docId);
     docsStore.set(userId, next);
     return next.length !== current.length;
+  };
+
+  try {
+    const target = await prisma.document.findFirst({
+      where: {
+        id: docId,
+        OR: [
+          { userId },
+          {
+            collaborators: {
+              some: { userId },
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        userId: true,
+      },
+    });
+
+    if (!target) {
+      if (deleteFromMemoryStore()) {
+        return "hard_deleted";
+      }
+      return "not_found";
+    }
+
+    if (target.userId === userId) {
+      await prisma.$transaction([
+        prisma.documentCollaborator.deleteMany({ where: { docId } }),
+        prisma.documentShareLink.deleteMany({ where: { docId } }),
+        prisma.document.delete({ where: { id: docId } }),
+      ]);
+      return "hard_deleted";
+    }
+
+    const removed = await prisma.documentCollaborator.deleteMany({
+      where: {
+        docId,
+        userId,
+      },
+    });
+    if (removed.count > 0) {
+      return "removed_from_list";
+    }
+
+    if (deleteFromMemoryStore()) {
+      return "hard_deleted";
+    }
+    return "not_found";
+  } catch {
+    return deleteFromMemoryStore() ? "hard_deleted" : "not_found";
   }
 }

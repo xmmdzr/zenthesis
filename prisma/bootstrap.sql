@@ -35,6 +35,7 @@ CREATE TABLE "Document" (
     "title" TEXT NOT NULL,
     "content" TEXT NOT NULL DEFAULT '',
     "contentJson" JSONB,
+    "creationSettings" JSONB,
     "status" TEXT NOT NULL DEFAULT 'empty',
     "draftType" TEXT,
     "isSample" BOOLEAN NOT NULL DEFAULT false,
@@ -192,4 +193,3 @@ CREATE INDEX "AIConversationLibraryItem_libraryItemId_idx" ON "AIConversationLib
 
 -- CreateIndex
 CREATE UNIQUE INDEX "AIConversationLibraryItem_conversationId_libraryItemId_key" ON "AIConversationLibraryItem"("conversationId", "libraryItemId");
-

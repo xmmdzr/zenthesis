@@ -50,6 +50,7 @@ model Document {
   title       String
   content     String   @default("")
   contentJson Json?
+  creationSettings Json?
   status      String   @default("empty")
   draftType   String?
   isSample    Boolean  @default(false)

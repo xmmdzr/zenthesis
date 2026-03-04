@@ -36,6 +36,7 @@ interface RichDocumentEditorProps {
   autoCompleteSettings: AutoCompleteSettings;
   onRequestAutoComplete: (payload: {
     content: string;
+    sectionTitle?: string;
     cursorContext?: string;
     retryFrom?: string;
     signal: AbortSignal;
@@ -79,6 +80,21 @@ function extractCursorContext(editor: ReturnType<typeof useEditor>) {
   const start = Math.max(1, position - 220);
   const text = editor.state.doc.textBetween(start, position, "\n", " ");
   return text.trim();
+}
+
+function extractCurrentSectionTitle(editor: ReturnType<typeof useEditor>) {
+  if (!editor) {
+    return "";
+  }
+
+  const position = editor.state.selection.from;
+  let latestHeading = "";
+  editor.state.doc.nodesBetween(0, position, (node) => {
+    if (node.type.name === "heading" && node.textContent.trim()) {
+      latestHeading = node.textContent.trim();
+    }
+  });
+  return latestHeading;
 }
 
 export function RichDocumentEditor({
@@ -197,6 +213,7 @@ export function RichDocumentEditor({
     try {
       const generated = await onRequestAutoComplete({
         content: editor.getText(),
+        sectionTitle: extractCurrentSectionTitle(editor),
         cursorContext: extractCursorContext(editor),
         retryFrom: options?.retryFrom,
         signal: controller.signal,

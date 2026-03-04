@@ -32,6 +32,16 @@ interface DocumentEditorPaneProps {
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
+interface AiHealthState {
+  configured: boolean;
+  reachable: boolean;
+  model: string;
+  baseUrl: string;
+  reason: string;
+  attempts: number;
+  activeKeySlot: string | null;
+}
+
 const defaultAutoCompleteSettings: AutoCompleteSettings = {
   useWeb: true,
   useLibrary: true,
@@ -117,6 +127,60 @@ function normalizeAutoCompleteSettings(raw?: Partial<AutoCompleteSettings>): Aut
   };
 }
 
+function mapCreationSettingsToAutoSettings(doc?: DocumentItem | null): AutoCompleteSettings {
+  const creation = doc?.creationSettings;
+  if (!creation) {
+    return defaultAutoCompleteSettings;
+  }
+
+  return normalizeAutoCompleteSettings({
+    useWeb: creation.useWeb,
+    useLibrary: creation.useLibrary,
+    yearPreset: creation.yearPreset === "5y" ? "5y" : "all",
+    yearMin: creation.yearMin,
+    yearMax: creation.yearMax,
+    impactPreset:
+      creation.impactPreset === "gt025"
+        ? "emerging"
+        : creation.impactPreset === "gt3"
+          ? "mid"
+          : creation.impactPreset === "gt10"
+            ? "high"
+            : "all",
+  });
+}
+
+function toHealthMessage(reason: string, t: (key: string) => string) {
+  if (reason === "missing_key") {
+    return t("doc.suggestion.missingKey");
+  }
+  if (reason === "timeout") {
+    return t("doc.suggestion.timeout");
+  }
+  if (reason === "upstream_non_2xx") {
+    return t("doc.suggestion.upstream");
+  }
+  if (reason === "network_error") {
+    return t("doc.suggestion.networkError");
+  }
+  return t("doc.suggestion.unavailable");
+}
+
+function toHealthInfoMessage(health: AiHealthState | null, t: (key: string, params?: Record<string, string | number>) => string) {
+  if (!health || !health.reachable || !health.activeKeySlot) {
+    return "";
+  }
+
+  if (health.activeKeySlot === "primary") {
+    return "";
+  }
+
+  return t("doc.suggestion.usingBackupKey", {
+    slot: health.activeKeySlot,
+    attempts: health.attempts,
+  });
+}
+
 function pickFileName(header: string | null, fallback: string) {
   if (!header) {
     return fallback;
@@ -183,23 +247,25 @@ function EditorContent({ currentDoc }: { currentDoc: DocumentItem | null }) {
   const [shareError, setShareError] = useState<string | null>(null);
   const [exporting, setExporting] = useState<"docx" | "pdf" | null>(null);
   const [isExportMenuOpen, setExportMenuOpen] = useState(false);
+  const [aiHealth, setAiHealth] = useState<AiHealthState | null>(null);
+  const [aiHealthLoading, setAiHealthLoading] = useState(true);
   const currentDocId = currentDoc?.id;
   const settingsPanelRef = useRef<HTMLDivElement | null>(null);
   const settingsToggleRef = useRef<HTMLButtonElement | null>(null);
   const [autoCompleteSettings, setAutoCompleteSettings] = useState<AutoCompleteSettings>(() => {
     if (!currentDocId || typeof window === "undefined") {
-      return defaultAutoCompleteSettings;
+      return mapCreationSettingsToAutoSettings(currentDoc);
     }
     const key = `zenthesis:autocomplete:${currentDocId}`;
     try {
       const raw = localStorage.getItem(key);
       if (!raw) {
-        return defaultAutoCompleteSettings;
+        return mapCreationSettingsToAutoSettings(currentDoc);
       }
       const parsed = JSON.parse(raw) as Partial<AutoCompleteSettings>;
       return normalizeAutoCompleteSettings(parsed);
     } catch {
-      return defaultAutoCompleteSettings;
+      return mapCreationSettingsToAutoSettings(currentDoc);
     }
   });
   const hasLibraryFileResources = useMemo(
@@ -221,6 +287,39 @@ function EditorContent({ currentDoc }: { currentDoc: DocumentItem | null }) {
     const key = `zenthesis:autocomplete:${currentDocId}`;
     localStorage.setItem(key, JSON.stringify(autoCompleteSettings));
   }, [autoCompleteSettings, currentDocId]);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/ai/health", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) {
+          return null;
+        }
+        return (await response.json()) as AiHealthState;
+      })
+      .then((health) => {
+        if (!active) {
+          return;
+        }
+        setAiHealth(health);
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+        setAiHealth(null);
+      })
+      .finally(() => {
+        if (!active) {
+          return;
+        }
+        setAiHealthLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!settingsOpen) {
@@ -275,12 +374,17 @@ function EditorContent({ currentDoc }: { currentDoc: DocumentItem | null }) {
 
   const requestAutoComplete = useCallback(async (payload: {
     content: string;
+    sectionTitle?: string;
     cursorContext?: string;
     retryFrom?: string;
     signal: AbortSignal;
   }) => {
     if (!currentDoc) {
       return null;
+    }
+
+    if (aiHealth && (!aiHealth.configured || !aiHealth.reachable)) {
+      throw new Error(toHealthMessage(aiHealth.reason, t));
     }
 
     let response: Response;
@@ -295,7 +399,9 @@ function EditorContent({ currentDoc }: { currentDoc: DocumentItem | null }) {
           docId: currentDoc.id,
           title: titleDraft,
           content: payload.content,
+          sectionTitle: payload.sectionTitle,
           cursorContext: payload.cursorContext,
+          docSettings: currentDoc.creationSettings || undefined,
           settings: autoCompleteSettings,
           retryFrom: payload.retryFrom,
         }),
@@ -312,7 +418,7 @@ function EditorContent({ currentDoc }: { currentDoc: DocumentItem | null }) {
 
     const result = (await response.json()) as { suggestion?: string };
     return (result.suggestion || "").trim() || null;
-  }, [autoCompleteSettings, currentDoc, t, titleDraft, user.id]);
+  }, [aiHealth, autoCompleteSettings, currentDoc, t, titleDraft, user.id]);
 
   const persist = useCallback(async () => {
     if (!currentDoc || !dirty) {
@@ -455,6 +561,7 @@ function EditorContent({ currentDoc }: { currentDoc: DocumentItem | null }) {
   }, [dirty, currentDoc, persist]);
 
   const isEmptyDoc = !currentDoc || (currentDoc.status === "empty" && contentDraft.trim().length === 0);
+  const healthInfoMessage = toHealthInfoMessage(aiHealth, t);
 
   return (
     <section className="relative flex h-full min-h-0 flex-col rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]">
@@ -904,6 +1011,15 @@ function EditorContent({ currentDoc }: { currentDoc: DocumentItem | null }) {
           <span>{t("doc.citation")}</span>
           <span>{t("doc.text")}</span>
         </div>
+        {autoCompleteEnabled && !aiHealthLoading && aiHealth && (!aiHealth.configured || !aiHealth.reachable) && (
+          <span className="text-xs text-red-500">{toHealthMessage(aiHealth.reason, t)}</span>
+        )}
+        {autoCompleteEnabled && !aiHealthLoading && aiHealth?.configured && aiHealth.reachable && healthInfoMessage && (
+          <span className="text-xs text-amber-600">{healthInfoMessage}</span>
+        )}
+        {autoCompleteEnabled && aiHealthLoading && (
+          <span className="text-xs text-[color:var(--muted-foreground)]">{t("doc.suggestion.healthChecking")}</span>
+        )}
         <span>
           {saveState === "saving" && t("common.saving")}
           {saveState === "saved" && t("common.saved")}
